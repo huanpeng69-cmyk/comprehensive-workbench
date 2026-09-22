@@ -1,0 +1,22 @@
+# 本地运行配置模板。复制为同目录 application.yml（已 gitignore）后按需修改。
+# Spring Boot 启动时自动加载 ./config/application.yml，优先级高于 jar 内的默认配置。
+#
+# 密钥重新生成示例（PowerShell）：
+#   -join ((New-Object byte[] 48).ForEach{ param($b); (New-Object System.Security.Cryptography.RandomNumberGenerator).GetBytes($b); $b.ToString('x2') })
+spring:
+  datasource:
+    # 已有数据库卷的密码在建库时固化，改这里需同步 ALTER USER 并重启
+    password: workbench123
+  data:
+    redis:
+      # 必须与 server/.env 中的 WORKBENCH_REDIS_PASSWORD 一致
+      password: <替换为随机值>
+
+workbench:
+  jwt:
+    # 至少 32 字节随机串；泄露后所有 token 需重签
+    secret: <替换为随机值>
+    expiration-minutes: 720
+  cors:
+    # 允许访问前端页面的来源；局域网分发时追加如 http://192.168.x.x:5173
+    allowed-origins: http://localhost:5173

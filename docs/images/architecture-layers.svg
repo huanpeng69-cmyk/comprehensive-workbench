@@ -1,0 +1,131 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="680" height="980" viewBox="0 0 680 980">
+<defs>
+<marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#94A3B8"/></marker>
+</defs>
+<rect width="680" height="980" fill="#FFFFFF"/>
+<text x="24" y="40" font-family='"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Source Han Sans SC","Noto Sans CJK SC",Segoe UI,Roboto,Helvetica,Arial,sans-serif' font-size="21" font-weight="700" fill="#0F172A">综合管理工作台 · 分层架构</text>
+<text x="24" y="64" font-family='"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Source Han Sans SC","Noto Sans CJK SC",Segoe UI,Roboto,Helvetica,Arial,sans-serif' font-size="12.5" fill="#64748B">模块化单体 + 分层解耦 + 可插拔 AI 适配层 ｜ 前端 Vue 3 · 后端 Spring Boot</text>
+<rect x="24" y="84" width="632" height="116" rx="14" fill="#FFFFFF" stroke="#E6EBF2" stroke-width="1.2"/>
+<rect x="24" y="84" width="5" height="116" rx="2.5" fill="#6366F1"/>
+<rect x="44" y="100" width="28" height="28" rx="8" fill="#6366F1" fill-opacity="0.14"/>
+<text x="58" y="119" font-family='"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Source Han Sans SC","Noto Sans CJK SC",Segoe UI,Roboto,Helvetica,Arial,sans-serif' font-size="14" font-weight="700" text-anchor="middle" fill="#6366F1">1</text>
+<text x="84" y="120" font-family='"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Source Han Sans SC","Noto Sans CJK SC",Segoe UI,Roboto,Helvetica,Arial,sans-serif' font-size="15.5" font-weight="700" fill="#0F172A">访问与展现层</text>
+<text x="84" y="139" font-family='"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Source Han Sans SC","Noto Sans CJK SC",Segoe UI,Roboto,Helvetica,Arial,sans-serif' font-size="11.5" fill="#64748B">页面 / 表单 / 图表 / 编辑器；不承载业务规则</text>
+<rect x="44" y="156" width="61.1" height="26" rx="13" fill="#6366F1" fill-opacity="0.10" stroke="#6366F1" stroke-opacity="0.22" stroke-width="1"/>
+<text x="74.5" y="173" font-family='"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Source Han Sans SC","Noto Sans CJK SC",Segoe UI,Roboto,Helvetica,Arial,sans-serif' font-size="11.5" text-anchor="middle" fill="#334155">PC Web</text>
+<rect x="113.055" y="156" width="60.5" height="26" rx="13" fill="#6366F1" fill-opacity="0.10" stroke="#6366F1" stroke-opacity="0.22" stroke-width="1"/>
+<text x="143.3" y="173" font-family='"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Source Han Sans SC","Noto Sans CJK SC",Segoe UI,Roboto,Helvetica,Arial,sans-serif' font-size="11.5" text-anchor="middle" fill="#334155">移动 H5</text>
+<rect x="181.535" y="156" width="102.2" height="26" rx="13" fill="#6366F1" fill-opacity="0.10" stroke="#6366F1" stroke-opacity="0.22" stroke-width="1"/>
+<text x="232.6" y="173" font-family='"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Source Han Sans SC","Noto Sans CJK SC",Segoe UI,Roboto,Helvetica,Arial,sans-serif' font-size="11.5" text-anchor="middle" fill="#334155">企业微信 / 钉钉</text>
+<line x1="340" y1="206" x2="340" y2="230" stroke="#94A3B8" stroke-width="1.4" marker-end="url(#ah)"/>
+<rect x="352" y="207.0" width="130.4" height="22" rx="11" fill="#F1F5F9"/>
+<text x="361" y="222.0" font-family='"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Source Han Sans SC","Noto Sans CJK SC",Segoe UI,Roboto,Helvetica,Arial,sans-serif' font-size="11" fill="#475569">HTTPS / REST / SSE</text>
+<rect x="24" y="236" width="632" height="116" rx="14" fill="#FFFFFF" stroke="#E6EBF2" stroke-width="1.2"/>
+<rect x="24" y="236" width="5" height="116" rx="2.5" fill="#3B82F6"/>
+<rect x="44" y="252" width="28" height="28" rx="8" fill="#3B82F6" fill-opacity="0.14"/>
+<text x="58" y="271" font-family='"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Source Han Sans SC","Noto Sans CJK SC",Segoe UI,Roboto,Helvetica,Arial,sans-serif' font-size="14" font-weight="700" text-anchor="middle" fill="#3B82F6">2</text>
+<text x="84" y="272" font-family='"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Source Han Sans SC","Noto Sans CJK SC",Segoe UI,Roboto,Helvetica,Arial,sans-serif' font-size="15.5" font-weight="700" fill="#0F172A">接口与接入层</text>
+<text x="84" y="291" font-family='"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Source Han Sans SC","Noto Sans CJK SC",Segoe UI,Roboto,Helvetica,Arial,sans-serif' font-size="11.5" fill="#64748B">把外部请求转换为内部用例；统一身份、权限与错误格式</text>
+<rect x="44" y="308" width="92.2" height="26" rx="13" fill="#3B82F6" fill-opacity="0.10" stroke="#3B82F6" stroke-opacity="0.22" stroke-width="1"/>
+<text x="90.1" y="325" font-family='"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Source Han Sans SC","Noto Sans CJK SC",Segoe UI,Roboto,Helvetica,Arial,sans-serif' font-size="11.5" text-anchor="middle" fill="#334155">API Controller</text>
+<rect x="144.22000000000003" y="308" width="42.8" height="26" rx="13" fill="#3B82F6" fill-opacity="0.10" stroke="#3B82F6" stroke-opacity="0.22" stroke-width="1"/>
+<text x="165.6" y="325" font-family='"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Source Han Sans SC","Noto Sans CJK SC",Segoe UI,Roboto,Helvetica,Arial,sans-serif' font-size="11.5" text-anchor="middle" fill="#334155">BFF</text>
+<rect x="194.99000000000004" y="308" width="66.0" height="26" rx="13" fill="#3B82F6" fill-opacity="0.10" stroke="#3B82F6" stroke-opacity="0.22" stroke-width="1"/>
+<text x="228.0" y="325" font-family='"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Source Han Sans SC","Noto Sans CJK SC",Segoe UI,Roboto,Helvetica,Arial,sans-serif' font-size="11.5" text-anchor="middle" fill="#334155">统一认证</text>
+<rect x="268.99" y="308" width="66.0" height="26" rx="13" fill="#3B82F6" fill-opacity="0.10" stroke="#3B82F6" stroke-opacity="0.22" stroke-width="1"/>
+<text x="302.0" y="325" font-family='"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Source Han Sans SC","Noto Sans CJK SC",Segoe UI,Roboto,Helvetica,Arial,sans-serif' font-size="11.5" text-anchor="middle" fill="#334155">参数校验</text>
+<rect x="342.99" y="308" width="43.0" height="26" rx="13" fill="#3B82F6" fill-opacity="0.10" stroke="#3B82F6" stroke-opacity="0.22" stroke-width="1"/>
+<text x="364.5" y="325" font-family='"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Source Han Sans SC","Noto Sans CJK SC",Segoe UI,Roboto,Helvetica,Arial,sans-serif' font-size="11.5" text-anchor="middle" fill="#334155">限流</text>
+<rect x="393.99" y="308" width="66.0" height="26" rx="13" fill="#3B82F6" fill-opacity="0.10" stroke="#3B82F6" stroke-opacity="0.22" stroke-width="1"/>
+<text x="427.0" y="325" font-family='"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Source Han Sans SC","Noto Sans CJK SC",Segoe UI,Roboto,Helvetica,Arial,sans-serif' font-size="11.5" text-anchor="middle" fill="#334155">防重提交</text>
+<line x1="340" y1="358" x2="340" y2="382" stroke="#94A3B8" stroke-width="1.4" marker-end="url(#ah)"/>
+<rect x="352" y="359.0" width="109.5" height="22" rx="11" fill="#F1F5F9"/>
+<text x="361" y="374.0" font-family='"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Source Han Sans SC","Noto Sans CJK SC",Segoe UI,Roboto,Helvetica,Arial,sans-serif' font-size="11" fill="#475569">Command / Query</text>
+<rect x="24" y="388" width="632" height="116" rx="14" fill="#FFFFFF" stroke="#E6EBF2" stroke-width="1.2"/>
+<rect x="24" y="388" width="5" height="116" rx="2.5" fill="#0EA5E9"/>
+<rect x="44" y="404" width="28" height="28" rx="8" fill="#0EA5E9" fill-opacity="0.14"/>
+<text x="58" y="423" font-family='"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Source Han Sans SC","Noto Sans CJK SC",Segoe UI,Roboto,Helvetica,Arial,sans-serif' font-size="14" font-weight="700" text-anchor="middle" fill="#0EA5E9">3</text>
+<text x="84" y="424" font-family='"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Source Han Sans SC","Noto Sans CJK SC",Segoe UI,Roboto,Helvetica,Arial,sans-serif' font-size="15.5" font-weight="700" fill="#0F172A">应用服务层</text>
+<text x="84" y="443" font-family='"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Source Han Sans SC","Noto Sans CJK SC",Segoe UI,Roboto,Helvetica,Arial,sans-serif' font-size="11.5" fill="#64748B">编排业务步骤、事务边界与权限校验；不直接写 SQL</text>
+<rect x="44" y="460" width="66.0" height="26" rx="13" fill="#0EA5E9" fill-opacity="0.10" stroke="#0EA5E9" stroke-opacity="0.22" stroke-width="1"/>
+<text x="77.0" y="477" font-family='"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Source Han Sans SC","Noto Sans CJK SC",Segoe UI,Roboto,Helvetica,Arial,sans-serif' font-size="11.5" text-anchor="middle" fill="#334155">统一待办</text>
+<rect x="118.0" y="460" width="66.0" height="26" rx="13" fill="#0EA5E9" fill-opacity="0.10" stroke="#0EA5E9" stroke-opacity="0.22" stroke-width="1"/>
+<text x="151.0" y="477" font-family='"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Source Han Sans SC","Noto Sans CJK SC",Segoe UI,Roboto,Helvetica,Arial,sans-serif' font-size="11.5" text-anchor="middle" fill="#334155">流程编排</text>
+<rect x="192.0" y="460" width="66.0" height="26" rx="13" fill="#0EA5E9" fill-opacity="0.10" stroke="#0EA5E9" stroke-opacity="0.22" stroke-width="1"/>
+<text x="225.0" y="477" font-family='"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Source Han Sans SC","Noto Sans CJK SC",Segoe UI,Roboto,Helvetica,Arial,sans-serif' font-size="11.5" text-anchor="middle" fill="#334155">工资批次</text>
+<rect x="266.0" y="460" width="66.0" height="26" rx="13" fill="#0EA5E9" fill-opacity="0.10" stroke="#0EA5E9" stroke-opacity="0.22" stroke-width="1"/>
+<text x="299.0" y="477" font-family='"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Source Han Sans SC","Noto Sans CJK SC",Segoe UI,Roboto,Helvetica,Arial,sans-serif' font-size="11.5" text-anchor="middle" fill="#334155">写作任务</text>
+<rect x="340.0" y="460" width="66.0" height="26" rx="13" fill="#0EA5E9" fill-opacity="0.10" stroke="#0EA5E9" stroke-opacity="0.22" stroke-width="1"/>
+<text x="373.0" y="477" font-family='"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Source Han Sans SC","Noto Sans CJK SC",Segoe UI,Roboto,Helvetica,Arial,sans-serif' font-size="11.5" text-anchor="middle" fill="#334155">活动报名</text>
+<rect x="414.0" y="460" width="66.0" height="26" rx="13" fill="#0EA5E9" fill-opacity="0.10" stroke="#0EA5E9" stroke-opacity="0.22" stroke-width="1"/>
+<text x="447.0" y="477" font-family='"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Source Han Sans SC","Noto Sans CJK SC",Segoe UI,Roboto,Helvetica,Arial,sans-serif' font-size="11.5" text-anchor="middle" fill="#334155">会议预约</text>
+<line x1="340" y1="510" x2="340" y2="534" stroke="#94A3B8" stroke-width="1.4" marker-end="url(#ah)"/>
+<rect x="352" y="511.0" width="138.8" height="22" rx="11" fill="#F1F5F9"/>
+<text x="361" y="526.0" font-family='"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Source Han Sans SC","Noto Sans CJK SC",Segoe UI,Roboto,Helvetica,Arial,sans-serif' font-size="11" fill="#475569">Domain Service / Event</text>
+<rect x="24" y="540" width="632" height="116" rx="14" fill="#FFFFFF" stroke="#E6EBF2" stroke-width="1.2"/>
+<rect x="24" y="540" width="5" height="116" rx="2.5" fill="#14B8A6"/>
+<rect x="44" y="556" width="28" height="28" rx="8" fill="#14B8A6" fill-opacity="0.14"/>
+<text x="58" y="575" font-family='"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Source Han Sans SC","Noto Sans CJK SC",Segoe UI,Roboto,Helvetica,Arial,sans-serif' font-size="14" font-weight="700" text-anchor="middle" fill="#14B8A6">4</text>
+<text x="84" y="576" font-family='"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Source Han Sans SC","Noto Sans CJK SC",Segoe UI,Roboto,Helvetica,Arial,sans-serif' font-size="15.5" font-weight="700" fill="#0F172A">领域业务层</text>
+<text x="84" y="595" font-family='"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Source Han Sans SC","Noto Sans CJK SC",Segoe UI,Roboto,Helvetica,Arial,sans-serif' font-size="11.5" fill="#64748B">业务实体、状态流转、规则与领域约束；模块内高内聚</text>
+<rect x="44" y="612" width="43.0" height="26" rx="13" fill="#14B8A6" fill-opacity="0.10" stroke="#14B8A6" stroke-opacity="0.22" stroke-width="1"/>
+<text x="65.5" y="629" font-family='"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Source Han Sans SC","Noto Sans CJK SC",Segoe UI,Roboto,Helvetica,Arial,sans-serif' font-size="11.5" text-anchor="middle" fill="#334155">人力</text>
+<rect x="95.0" y="612" width="43.0" height="26" rx="13" fill="#14B8A6" fill-opacity="0.10" stroke="#14B8A6" stroke-opacity="0.22" stroke-width="1"/>
+<text x="116.5" y="629" font-family='"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Source Han Sans SC","Noto Sans CJK SC",Segoe UI,Roboto,Helvetica,Arial,sans-serif' font-size="11.5" text-anchor="middle" fill="#334155">工资</text>
+<rect x="146.0" y="612" width="54.5" height="26" rx="13" fill="#14B8A6" fill-opacity="0.10" stroke="#14B8A6" stroke-opacity="0.22" stroke-width="1"/>
+<text x="173.2" y="629" font-family='"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Source Han Sans SC","Noto Sans CJK SC",Segoe UI,Roboto,Helvetica,Arial,sans-serif' font-size="11.5" text-anchor="middle" fill="#334155">办公室</text>
+<rect x="208.5" y="612" width="54.5" height="26" rx="13" fill="#14B8A6" fill-opacity="0.10" stroke="#14B8A6" stroke-opacity="0.22" stroke-width="1"/>
+<text x="235.8" y="629" font-family='"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Source Han Sans SC","Noto Sans CJK SC",Segoe UI,Roboto,Helvetica,Arial,sans-serif' font-size="11.5" text-anchor="middle" fill="#334155">写作台</text>
+<rect x="271.0" y="612" width="43.0" height="26" rx="13" fill="#14B8A6" fill-opacity="0.10" stroke="#14B8A6" stroke-opacity="0.22" stroke-width="1"/>
+<text x="292.5" y="629" font-family='"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Source Han Sans SC","Noto Sans CJK SC",Segoe UI,Roboto,Helvetica,Arial,sans-serif' font-size="11.5" text-anchor="middle" fill="#334155">党建</text>
+<rect x="322.0" y="612" width="43.0" height="26" rx="13" fill="#14B8A6" fill-opacity="0.10" stroke="#14B8A6" stroke-opacity="0.22" stroke-width="1"/>
+<text x="343.5" y="629" font-family='"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Source Han Sans SC","Noto Sans CJK SC",Segoe UI,Roboto,Helvetica,Arial,sans-serif' font-size="11.5" text-anchor="middle" fill="#334155">工会</text>
+<rect x="373.0" y="612" width="66.0" height="26" rx="13" fill="#14B8A6" fill-opacity="0.10" stroke="#14B8A6" stroke-opacity="0.22" stroke-width="1"/>
+<text x="406.0" y="629" font-family='"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Source Han Sans SC","Noto Sans CJK SC",Segoe UI,Roboto,Helvetica,Arial,sans-serif' font-size="11.5" text-anchor="middle" fill="#334155">协同中心</text>
+<line x1="340" y1="662" x2="340" y2="686" stroke="#94A3B8" stroke-width="1.4" marker-end="url(#ah)"/>
+<rect x="352" y="663.0" width="104.0" height="22" rx="11" fill="#F1F5F9"/>
+<text x="361" y="678.0" font-family='"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Source Han Sans SC","Noto Sans CJK SC",Segoe UI,Roboto,Helvetica,Arial,sans-serif' font-size="11" fill="#475569">Repository / Port</text>
+<rect x="24" y="692" width="632" height="116" rx="14" fill="#FFFFFF" stroke="#E6EBF2" stroke-width="1.2"/>
+<rect x="24" y="692" width="5" height="116" rx="2.5" fill="#F59E0B"/>
+<rect x="44" y="708" width="28" height="28" rx="8" fill="#F59E0B" fill-opacity="0.14"/>
+<text x="58" y="727" font-family='"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Source Han Sans SC","Noto Sans CJK SC",Segoe UI,Roboto,Helvetica,Arial,sans-serif' font-size="14" font-weight="700" text-anchor="middle" fill="#F59E0B">5</text>
+<text x="84" y="728" font-family='"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Source Han Sans SC","Noto Sans CJK SC",Segoe UI,Roboto,Helvetica,Arial,sans-serif' font-size="15.5" font-weight="700" fill="#0F172A">基础设施层</text>
+<text x="84" y="747" font-family='"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Source Han Sans SC","Noto Sans CJK SC",Segoe UI,Roboto,Helvetica,Arial,sans-serif' font-size="11.5" fill="#64748B">通用技术能力；通过接口隔离具体供应商</text>
+<rect x="44" y="764" width="43.0" height="26" rx="13" fill="#F59E0B" fill-opacity="0.10" stroke="#F59E0B" stroke-opacity="0.22" stroke-width="1"/>
+<text x="65.5" y="781" font-family='"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Source Han Sans SC","Noto Sans CJK SC",Segoe UI,Roboto,Helvetica,Arial,sans-serif' font-size="11.5" text-anchor="middle" fill="#334155">权限</text>
+<rect x="95.0" y="764" width="43.0" height="26" rx="13" fill="#F59E0B" fill-opacity="0.10" stroke="#F59E0B" stroke-opacity="0.22" stroke-width="1"/>
+<text x="116.5" y="781" font-family='"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Source Han Sans SC","Noto Sans CJK SC",Segoe UI,Roboto,Helvetica,Arial,sans-serif' font-size="11.5" text-anchor="middle" fill="#334155">消息</text>
+<rect x="146.0" y="764" width="43.0" height="26" rx="13" fill="#F59E0B" fill-opacity="0.10" stroke="#F59E0B" stroke-opacity="0.22" stroke-width="1"/>
+<text x="167.5" y="781" font-family='"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Source Han Sans SC","Noto Sans CJK SC",Segoe UI,Roboto,Helvetica,Arial,sans-serif' font-size="11.5" text-anchor="middle" fill="#334155">文件</text>
+<rect x="197.0" y="764" width="43.0" height="26" rx="13" fill="#F59E0B" fill-opacity="0.10" stroke="#F59E0B" stroke-opacity="0.22" stroke-width="1"/>
+<text x="218.5" y="781" font-family='"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Source Han Sans SC","Noto Sans CJK SC",Segoe UI,Roboto,Helvetica,Arial,sans-serif' font-size="11.5" text-anchor="middle" fill="#334155">搜索</text>
+<rect x="248.0" y="764" width="43.0" height="26" rx="13" fill="#F59E0B" fill-opacity="0.10" stroke="#F59E0B" stroke-opacity="0.22" stroke-width="1"/>
+<text x="269.5" y="781" font-family='"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Source Han Sans SC","Noto Sans CJK SC",Segoe UI,Roboto,Helvetica,Arial,sans-serif' font-size="11.5" text-anchor="middle" fill="#334155">报表</text>
+<rect x="299.0" y="764" width="43.0" height="26" rx="13" fill="#F59E0B" fill-opacity="0.10" stroke="#F59E0B" stroke-opacity="0.22" stroke-width="1"/>
+<text x="320.5" y="781" font-family='"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Source Han Sans SC","Noto Sans CJK SC",Segoe UI,Roboto,Helvetica,Arial,sans-serif' font-size="11.5" text-anchor="middle" fill="#334155">调度</text>
+<rect x="350.0" y="764" width="43.0" height="26" rx="13" fill="#F59E0B" fill-opacity="0.10" stroke="#F59E0B" stroke-opacity="0.22" stroke-width="1"/>
+<text x="371.5" y="781" font-family='"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Source Han Sans SC","Noto Sans CJK SC",Segoe UI,Roboto,Helvetica,Arial,sans-serif' font-size="11.5" text-anchor="middle" fill="#334155">审计</text>
+<rect x="401.0" y="764" width="69.0" height="26" rx="13" fill="#F59E0B" fill-opacity="0.10" stroke="#F59E0B" stroke-opacity="0.22" stroke-width="1"/>
+<text x="435.5" y="781" font-family='"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Source Han Sans SC","Noto Sans CJK SC",Segoe UI,Roboto,Helvetica,Arial,sans-serif' font-size="11.5" text-anchor="middle" fill="#334155">AI 适配层</text>
+<line x1="340" y1="814" x2="340" y2="838" stroke="#94A3B8" stroke-width="1.4" marker-end="url(#ah)"/>
+<rect x="352" y="815.0" width="162.3" height="22" rx="11" fill="#F1F5F9"/>
+<text x="361" y="830.0" font-family='"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Source Han Sans SC","Noto Sans CJK SC",Segoe UI,Roboto,Helvetica,Arial,sans-serif' font-size="11" fill="#475569">ORM / SQL / Object Storage</text>
+<rect x="24" y="844" width="632" height="116" rx="14" fill="#FFFFFF" stroke="#E6EBF2" stroke-width="1.2"/>
+<rect x="24" y="844" width="5" height="116" rx="2.5" fill="#8B5CF6"/>
+<rect x="44" y="860" width="28" height="28" rx="8" fill="#8B5CF6" fill-opacity="0.14"/>
+<text x="58" y="879" font-family='"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Source Han Sans SC","Noto Sans CJK SC",Segoe UI,Roboto,Helvetica,Arial,sans-serif' font-size="14" font-weight="700" text-anchor="middle" fill="#8B5CF6">6</text>
+<text x="84" y="880" font-family='"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Source Han Sans SC","Noto Sans CJK SC",Segoe UI,Roboto,Helvetica,Arial,sans-serif' font-size="15.5" font-weight="700" fill="#0F172A">数据与外部系统层</text>
+<text x="84" y="899" font-family='"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Source Han Sans SC","Noto Sans CJK SC",Segoe UI,Roboto,Helvetica,Arial,sans-serif' font-size="11.5" fill="#64748B">明确谁是权威来源；不复制不必要的专业数据</text>
+<rect x="44" y="916" width="82.6" height="26" rx="13" fill="#8B5CF6" fill-opacity="0.10" stroke="#8B5CF6" stroke-opacity="0.22" stroke-width="1"/>
+<text x="85.3" y="933" font-family='"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Source Han Sans SC","Noto Sans CJK SC",Segoe UI,Roboto,Helvetica,Arial,sans-serif' font-size="11.5" text-anchor="middle" fill="#334155">PostgreSQL</text>
+<rect x="134.56" y="916" width="50.0" height="26" rx="13" fill="#8B5CF6" fill-opacity="0.10" stroke="#8B5CF6" stroke-opacity="0.22" stroke-width="1"/>
+<text x="159.6" y="933" font-family='"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Source Han Sans SC","Noto Sans CJK SC",Segoe UI,Roboto,Helvetica,Arial,sans-serif' font-size="11.5" text-anchor="middle" fill="#334155">Redis</text>
+<rect x="192.575" y="916" width="66.0" height="26" rx="13" fill="#8B5CF6" fill-opacity="0.10" stroke="#8B5CF6" stroke-opacity="0.22" stroke-width="1"/>
+<text x="225.6" y="933" font-family='"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Source Han Sans SC","Noto Sans CJK SC",Segoe UI,Roboto,Helvetica,Arial,sans-serif' font-size="11.5" text-anchor="middle" fill="#334155">对象存储</text>
+<rect x="266.575" y="916" width="66.0" height="26" rx="13" fill="#8B5CF6" fill-opacity="0.10" stroke="#8B5CF6" stroke-opacity="0.22" stroke-width="1"/>
+<text x="299.6" y="933" font-family='"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Source Han Sans SC","Noto Sans CJK SC",Segoe UI,Roboto,Helvetica,Arial,sans-serif' font-size="11.5" text-anchor="middle" fill="#334155">搜索引擎</text>
+<rect x="340.575" y="916" width="136.0" height="26" rx="13" fill="#8B5CF6" fill-opacity="0.10" stroke="#8B5CF6" stroke-opacity="0.22" stroke-width="1"/>
+<text x="408.6" y="933" font-family='"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Source Han Sans SC","Noto Sans CJK SC",Segoe UI,Roboto,Helvetica,Arial,sans-serif' font-size="11.5" text-anchor="middle" fill="#334155">HR / 薪资 / 财务 / OA</text>
+<rect x="484.61" y="916" width="77.5" height="26" rx="13" fill="#8B5CF6" fill-opacity="0.10" stroke="#8B5CF6" stroke-opacity="0.22" stroke-width="1"/>
+<text x="523.4" y="933" font-family='"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Source Han Sans SC","Noto Sans CJK SC",Segoe UI,Roboto,Helvetica,Arial,sans-serif' font-size="11.5" text-anchor="middle" fill="#334155">模型供应商</text>
+</svg>
