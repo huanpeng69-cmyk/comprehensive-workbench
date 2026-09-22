@@ -21,11 +21,11 @@ if errorlevel 1 (
   goto fail
 )
 pushd "%ROOT%server"
-docker compose up -d
+docker-compose up -d
 set "DOCKER_RC=%errorlevel%"
 popd
 if not "%DOCKER_RC%"=="0" (
-  echo   [ERROR] "docker compose up -d" failed. Is Docker Desktop running?
+  echo   [ERROR] "docker-compose up -d" failed. Is Docker Desktop running?
   echo           Start Docker Desktop, wait until it says "Engine running", then re-run this.
   goto fail
 )

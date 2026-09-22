@@ -10,6 +10,7 @@ server/.docker-data/
 server/logs.out
 server/logs.err
 server/logs/
+server/logs.phase1.*
 *.log
 # Spring Boot 启动日志（含本地绝对路径）
 logs.secure.err
