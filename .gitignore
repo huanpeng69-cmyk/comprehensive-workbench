@@ -1,0 +1,52 @@
+# ===== 密钥与本地配置（绝不入库）=====
+server/.env
+server/config/application.yml
+server/config/application-*.yml
+*.pem
+*.keystore
+
+# ===== 运行时数据（含 PostgreSQL/Redis 数据文件）=====
+server/.docker-data/
+server/logs.out
+server/logs.err
+server/logs/
+server/logs.phase1.*
+*.log
+# Spring Boot 启动日志（含本地绝对路径）
+logs.secure.err
+logs.secure.out
+server/logs.secure.err
+server/logs.secure.out
+
+# ===== 构建产物 =====
+server/target/
+web/dist/
+web/node_modules/
+*.jar
+!server/.tools/**/*.jar
+
+# ===== Agent / 工具链产物 =====
+.workbuddy/
+.playwright-cli/
+.codex/
+tools/diag-*.png
+tools/pdf_raw/
+tools/*_log*.txt
+tools/raw_*.txt
+
+# ===== IDE / 系统 =====
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+
+# ===== 内部资料：保密要求，绝不入库 =====
+# 真实公司制度原文库（含未公开制度文本）
+制度文件库/
+# 制度正文（运行时由后端鉴权接口读取，仓库内不含原文）
+server/regulations/
+# 本地工具链（含 Maven 发行包）与运维脚本
+server/.tools/
+# 一次性数据提取/诊断脚本与原始档案文本、截图
+tools/

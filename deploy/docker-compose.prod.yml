@@ -1,0 +1,29 @@
+# 综合管理工作台 · 生产入口编排（仅 Nginx）
+#
+# 用途：部门联机部署时，80 端口统一入口
+#   浏览器 → :80 Nginx → 静态前端(web/dist) + /api → 宿主机 Spring Boot(:8080)
+#
+# 数据服务（PostgreSQL/Redis）仍由 server/docker-compose.yml 管理，
+# 本文件不重复定义，也不暴露任何数据端口。
+#
+# 启动：cd deploy && docker compose -f docker-compose.prod.yml up -d
+# 停止：docker compose -f docker-compose.prod.yml down
+#
+# 前提：web/dist 已通过 npm run build 生成（见 web/package.json）
+
+services:
+  workbench-nginx:
+    image: nginx:alpine
+    container_name: workbench-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      # 前端构建产物（只读）
+      - ../web/dist:/usr/share/nginx/html:ro
+      # 站点配置（只读）
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    extra_hosts:
+      # Linux 主机上 host.docker.internal 需要 host-gateway；
+      # Docker Desktop(Windows/Mac) 原生支持，此行幂等无害
+      - "host.docker.internal:host-gateway"

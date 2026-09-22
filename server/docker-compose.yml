@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  workbench-postgres:
+    image: postgres:16-alpine
+    container_name: workbench-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: workbench
+      POSTGRES_USER: ${WORKBENCH_DB_USER:-workbench}
+      POSTGRES_PASSWORD: ${WORKBENCH_DB_PASSWORD:?请在 server/.env 中设置 WORKBENCH_DB_PASSWORD}
+    ports:
+      # 只绑回环地址：数据库不暴露到局域网
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - ./.docker-data/postgres:/var/lib/postgresql/data
+
+  workbench-redis:
+    image: redis:7-alpine
+    container_name: workbench-redis
+    restart: unless-stopped
+    command: ["redis-server", "--requirepass", "${WORKBENCH_REDIS_PASSWORD:?请在 server/.env 中设置 WORKBENCH_REDIS_PASSWORD}"]
+    ports:
+      # 只绑回环地址：缓存不暴露到局域网
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - ./.docker-data/redis:/data
