@@ -1,8 +1,13 @@
 import { reactive } from 'vue'
 import type { GradeStandard } from '@/mock/types'
+import { get, put } from '@/api/http'
 
-const STORAGE_KEY = 'salary-grade-standard-v1'
-const CONFIG_KEY = 'salary-payroll-config-v1'
+/**
+ * 工资核算配置（应出工日基准 + 薪档标准表）：
+ * 数据源为后端 /api/salaries/config（仅全公司数据范围角色可读写）。
+ * 模块加载时异步拉取一次；persist* 改为调用服务端接口。
+ * 旧 localStorage（salary-grade-standard-v1 / salary-payroll-config-v1）不再读写。
+ */
 
 /** 全局工资核算配置（应出工日等基准） */
 export interface PayrollConfig {
@@ -10,61 +15,56 @@ export interface PayrollConfig {
   standardWorkdays: number
 }
 
-function loadConfig(): PayrollConfig {
-  try {
-    const raw = localStorage.getItem(CONFIG_KEY)
-    if (raw) {
-      const c = JSON.parse(raw)
-      if (c && typeof c.standardWorkdays === 'number' && Number.isFinite(c.standardWorkdays)) {
-        return { standardWorkdays: c.standardWorkdays }
-      }
+const DEFAULT_CONFIG: PayrollConfig = { standardWorkdays: 21.75 }
+
+/** 全局应出工日基准（reactive，跨页面/模块共享） */
+export const payrollConfig = reactive<PayrollConfig>({ ...DEFAULT_CONFIG })
+
+/** 薪档标准表（reactive，跨页面/模块共享） */
+export const gradeStandards = reactive<GradeStandard[]>([])
+
+let initialized = false
+
+/** 从服务器加载配置；失败时保持默认值（页面会有后端错误提示路径） */
+export async function initSalaryConfig(force = false): Promise<void> {
+  if (initialized && !force) return
+  const data = await get<{ standardWorkdays?: number; standards?: GradeStandard[] }>(
+    '/api/salaries/config'
+  )
+  if (data && typeof data === 'object') {
+    if (typeof data.standardWorkdays === 'number' && Number.isFinite(data.standardWorkdays)) {
+      payrollConfig.standardWorkdays = data.standardWorkdays
     }
-  } catch {
-    /* 解析失败回退默认 */
+    if (Array.isArray(data.standards)) {
+      gradeStandards.splice(0, gradeStandards.length, ...data.standards)
+    }
   }
-  return { standardWorkdays: 21.75 }
+  initialized = true
 }
 
-/** 全局应出工日基准（reactive，跨页面/模块共享并持久化） */
-export const payrollConfig = reactive<PayrollConfig>(loadConfig())
+/** 模块加载即拉取（幂等；未登录时请求失败静默，登录页不需要该数据） */
+void initSalaryConfig().catch(() => {})
 
-export function persistConfig() {
-  try {
-    localStorage.setItem(CONFIG_KEY, JSON.stringify(payrollConfig))
-  } catch {
-    /* 配额异常静默 */
-  }
+async function persistAll(): Promise<void> {
+  await put('/api/salaries/config', {
+    standardWorkdays: payrollConfig.standardWorkdays,
+    standards: gradeStandards
+  })
+}
+
+export function persistConfig(): Promise<void> {
+  return persistAll()
 }
 
 export function setStandardWorkdays(v: number) {
   if (Number.isFinite(v) && v > 0) {
     payrollConfig.standardWorkdays = v
-    persistConfig()
+    void persistConfig().catch(() => {})
   }
 }
 
-function load(): GradeStandard[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) {
-      const a = JSON.parse(raw)
-      if (Array.isArray(a)) return a
-    }
-  } catch {
-    /* 解析失败回退空 */
-  }
-  return []
-}
-
-/** 薪档标准表（reactive，跨页面/模块共享） */
-export const gradeStandards = reactive<GradeStandard[]>(load())
-
-export function persistStandards() {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(gradeStandards))
-  } catch {
-    /* 配额异常静默 */
-  }
+export function persistStandards(): Promise<void> {
+  return persistAll()
 }
 
 export function getStandard(grade: string | undefined): GradeStandard | undefined {
@@ -76,12 +76,12 @@ export function gradeList(): string[] {
   return gradeStandards.map((s) => s.grade)
 }
 
-/** 编辑单条标准（直接 mutate reactive 后持久化） */
+/** 编辑单条标准（直接 mutate reactive 后持久化到服务端） */
 export function updateStandard(grade: string, patch: Partial<GradeStandard>) {
   const s = getStandard(grade)
   if (!s) return
   Object.assign(s, patch)
-  persistStandards()
+  void persistAll().catch(() => {})
 }
 
 export function addStandard(grade: string) {
@@ -103,18 +103,18 @@ export function addStandard(grade: string) {
     taxThreshold: 5000,
     netStandard: 0
   })
-  persistStandards()
+  void persistAll().catch(() => {})
 }
 
 export function removeStandard(grade: string) {
   const i = gradeStandards.findIndex((s) => s.grade === grade)
   if (i >= 0) gradeStandards.splice(i, 1)
-  persistStandards()
+  void persistAll().catch(() => {})
 }
 
 /**
  * 首次使用时按花名册已有薪档建表。samples: 薪档 → 代表人员取数（基数/月度实领标准）。
- * 已有的标准表不会被覆盖。
+ * 已有的标准表不会被覆盖。persist 失败时本地已生效，下次修改会再次尝试保存。
  */
 export function ensureSeed(opts: { grades: string[]; samples?: Record<string, Partial<GradeStandard>> }) {
   if (gradeStandards.length) return
@@ -140,5 +140,5 @@ export function ensureSeed(opts: { grades: string[]; samples?: Record<string, Pa
       netStandard: s?.netStandard ?? 0
     })
   }
-  persistStandards()
+  void persistAll().catch(() => {})
 }

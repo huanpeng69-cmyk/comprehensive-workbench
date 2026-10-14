@@ -1,14 +1,16 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import * as echarts from 'echarts'
 import { useRouter } from 'vue-router'
-import { notices, payrollBatches } from '@/mock/data'
 import {
   listMyInstances,
   listMyTodos,
   type InstanceSummaryVo,
   type TaskVo
 } from '@/api/workflow'
+import { listNotices } from '@/api/notice'
+import { listSalaryMonths } from '@/api/salary'
+import type { Notice, SalaryMonthData } from '@/mock/types'
 import { Bell, Money, Reading, Tickets } from '@element-plus/icons-vue'
 import MetricCard from '@/components/dashboard/MetricCard.vue'
 import TaskCard from '@/components/workflow/TaskCard.vue'
@@ -18,26 +20,26 @@ let chart: echarts.ECharts | null = null
 
 const todoList = ref<TaskVo[]>([])
 const myInstances = ref<InstanceSummaryVo[]>([])
+const noticeList = ref<Notice[]>([])
+const salaryMonths = ref<SalaryMonthData[]>([])
 
 const router = useRouter()
 
-const pendingPayrollCount = computed(() =>
-  payrollBatches.filter((b) => b.status !== '已发布').length
-)
 const readRate = computed(() => {
-  if (notices.length === 0) return 0
-  const read = notices.reduce((sum, n) => sum + n.readCount, 0)
-  const total = notices.reduce((sum, n) => sum + n.totalCount, 0)
+  if (noticeList.value.length === 0) return 0
+  const read = noticeList.value.reduce((sum, n) => sum + n.readCount, 0)
+  const total = noticeList.value.reduce((sum, n) => sum + n.totalCount, 0)
   return total === 0 ? 0 : Math.round((read / total) * 100)
 })
 const runningCount = computed(() =>
   myInstances.value.filter((i) => i.status === 'RUNNING').length
 )
+const salaryMonthCount = computed(() => salaryMonths.value.length)
 
 const stats = computed(() => [
   { label: '待办事项', value: todoList.value.length, icon: Bell, accent: true },
   { label: '在途流程', value: runningCount.value, icon: Tickets },
-  { label: '待审批工资批次', value: pendingPayrollCount.value, icon: Money },
+  { label: '工资账期', value: salaryMonthCount.value, icon: Money },
   { label: '公告阅读率', value: readRate.value + '%', icon: Reading }
 ])
 
@@ -51,19 +53,46 @@ async function loadTodos() {
   }
 }
 
-function goApprove() {
-  router.push('/workflow/todos')
+async function loadNotices() {
+  try {
+    noticeList.value = await listNotices()
+  } catch {
+    noticeList.value = []
+  }
 }
 
-onMounted(() => {
-  loadTodos()
+/** 工资为全公司敏感数据，项目部角色会 403；单独捕获，避免影响其它卡片与图表。 */
+async function loadSalary() {
+  try {
+    salaryMonths.value = await listSalaryMonths()
+  } catch {
+    salaryMonths.value = []
+  }
+  await nextTick()
+  renderChart()
+}
+
+function renderChart() {
   if (!chartRef.value) return
-  chart = echarts.init(chartRef.value)
-  const latestPeriod = payrollBatches[0].period
-  const rows = payrollBatches.filter((b) => b.period === latestPeriod)
+  if (!chart) chart = echarts.init(chartRef.value)
+  const latest = salaryMonths.value[0]
+  const title = latest
+    ? `各部门 ${latest.month} 工资应发合计（元）`
+    : '各部门工资应发合计（元）'
+  const byDept = new Map<string, number>()
+  if (latest) {
+    for (const r of latest.records) {
+      const v = typeof r.dueTotal === 'number'
+        ? r.dueTotal
+        : (typeof r.importedDue === 'number' ? r.importedDue : 0)
+      byDept.set(r.department, (byDept.get(r.department) || 0) + (Number(v) || 0))
+    }
+  }
+  const depts = [...byDept.keys()]
+  const values = depts.map((d) => byDept.get(d) || 0)
   chart.setOption({
     title: {
-      text: '各项目部 ' + latestPeriod + ' 工资应发合计（元）',
+      text: title,
       left: 'center',
       textStyle: { fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.92)' }
     },
@@ -76,9 +105,13 @@ onMounted(() => {
     grid: { top: 48, left: 52, right: 24, bottom: 32 },
     xAxis: {
       type: 'category',
-      data: rows.map((r) => r.project.replace('项目部', '')),
+      data: depts,
       axisLine: { lineStyle: { color: 'rgba(255,255,255,0.32)' } },
-      axisLabel: { color: 'rgba(255,255,255,0.72)' }
+      axisLabel: {
+        color: 'rgba(255,255,255,0.72)',
+        interval: 0,
+        rotate: depts.length > 6 ? 30 : 0
+      }
     },
     yAxis: {
       type: 'value',
@@ -92,7 +125,7 @@ onMounted(() => {
       {
         name: '应发合计',
         type: 'bar',
-        data: rows.map((r) => r.total),
+        data: values,
         itemStyle: {
           color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
             { offset: 0, color: '#E9C07A' },
@@ -104,6 +137,16 @@ onMounted(() => {
       }
     ]
   })
+}
+
+function goApprove() {
+  router.push('/workflow/todos')
+}
+
+onMounted(() => {
+  loadTodos()
+  loadNotices()
+  loadSalary()
   window.addEventListener('resize', resizeChart)
 })
 
@@ -140,7 +183,7 @@ onBeforeUnmount(() => {
         <div class="panel-head">
           <span class="panel-title">最新公告</span>
         </div>
-        <div v-for="n in notices.slice(0, 4)" :key="n.id" class="notice-item">
+        <div v-for="n in noticeList.slice(0, 4)" :key="n.id" class="notice-item">
           <el-tag v-if="n.urgent" type="danger" size="small" effect="plain">紧急</el-tag>
           <span class="notice-title" :title="n.title">{{ n.title }}</span>
           <span class="notice-date">{{ n.publishedAt.slice(0, 10) }}</span>

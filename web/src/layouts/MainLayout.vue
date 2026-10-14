@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
-import { PROJECTS } from '@/mock/data'
+import { listOrgUnits, type OrgUnit } from '@/api/org'
 import { ArrowDown, Fold, Expand, Bell, Sunrise, MagicStick, SwitchButton } from '@element-plus/icons-vue'
 
 interface MenuItem {
@@ -16,41 +16,67 @@ const route = useRoute()
 const router = useRouter()
 const user = useUserStore()
 
-const menus: MenuItem[] = [
-  { title: '工作台首页', index: '/home', icon: 'HomeFilled' },
-  { title: '待办中心', index: '/workflow/todos', icon: 'Bell' },
-  {
-    title: '人力管理', index: 'hr', icon: 'User',
-    children: [
-      { title: '人员花名册', index: '/hr/staff' },
-      { title: '工资制作', index: '/hr/payroll' },
-      { title: '请假申请', index: '/hr/leave' }
-    ]
-  },
-  {
-    title: '办公室管理', index: 'office', icon: 'OfficeBuilding',
-    children: [
-      { title: '通知公告', index: '/office/notice' },
-      { title: '公章使用登记', index: '/office/seal' },
-      { title: '公务接待', index: '/office/reception' }
-    ]
-  },
-  {
-    title: '党建管理', index: 'party', icon: 'Flag',
-    children: [
-      { title: '党员名册', index: '/party/members' },
-      { title: '党费季度明细', index: '/party/fees' }
-    ]
-  },
-  {
-    title: '工会管理', index: 'union', icon: 'Briefcase',
-    children: [
-      { title: '慰问金审批', index: '/union/condolence' },
-      { title: '节日福利签收', index: '/union/welfare' }
-    ]
-  },
-  { title: '制度文件库', index: '/kb/regulations', icon: 'Document' }
-]
+const projectOptions = ref<OrgUnit[]>([])
+
+async function loadProjects() {
+  try {
+    projectOptions.value = await listOrgUnits('PROJECT')
+  } catch {
+    // 组织机构接口异常时保持空下拉，不阻塞整体布局
+    projectOptions.value = []
+  }
+}
+onMounted(loadProjects)
+
+const isAdmin = computed(() => user.roles.includes('SYSTEM_ADMIN'))
+
+const menus = computed<MenuItem[]>(() => {
+  const items: MenuItem[] = [
+    { title: '工作台首页', index: '/home', icon: 'HomeFilled' },
+    { title: '待办中心', index: '/workflow/todos', icon: 'Bell' },
+    {
+      title: '人力管理', index: 'hr', icon: 'User',
+      children: [
+        { title: '人员花名册', index: '/hr/staff' },
+        { title: '工资制作', index: '/hr/payroll' },
+        { title: '请假申请', index: '/hr/leave' }
+      ]
+    },
+    {
+      title: '办公室管理', index: 'office', icon: 'OfficeBuilding',
+      children: [
+        { title: '通知公告', index: '/office/notice' },
+        { title: '公章使用登记', index: '/office/seal' },
+        { title: '公务接待', index: '/office/reception' }
+      ]
+    },
+    {
+      title: '党建管理', index: 'party', icon: 'Flag',
+      children: [
+        { title: '党员名册', index: '/party/members' },
+        { title: '党费季度明细', index: '/party/fees' }
+      ]
+    },
+    {
+      title: '工会管理', index: 'union', icon: 'Briefcase',
+      children: [
+        { title: '慰问金审批', index: '/union/condolence' },
+        { title: '节日福利签收', index: '/union/welfare' }
+      ]
+    },
+    { title: '企业知识库', index: '/kb/assistant', icon: 'Collection' },
+    { title: 'AI 智能体', index: '/ai/writing', icon: 'MagicStick' }
+  ]
+  if (isAdmin.value) {
+    items.push({
+      title: '系统管理', index: 'system', icon: 'Setting',
+      children: [
+        { title: '成员管理', index: '/system/members' }
+      ]
+    })
+  }
+  return items
+})
 
 const pageTitle = computed(() => (route.meta.title as string) || '')
 
@@ -127,10 +153,9 @@ function onLogout() {
         </nav>
 
         <div class="sidebar-foot">
-          <div v-show="!collapsed" class="ai-entry">
+          <div v-show="!collapsed" class="ai-entry" @click="router.push('/ai/writing'); mobileOpen = false" style="cursor: pointer">
             <el-icon :size="15"><MagicStick /></el-icon>
-            <span>AI 助手</span>
-            <span class="ai-soon">即将上线</span>
+            <span>AI 智能体</span>
           </div>
           <button class="user-card" @click="onLogout">
             <div class="user-avatar">{{ user.name.charAt(0) }}</div>
@@ -160,8 +185,8 @@ function onLogout() {
           <span class="greeting-date">今天是 {{ today }}，这里是你的工作空间。</span>
         </div>
         <div class="header-actions">
-          <el-select v-model="user.project" size="small" style="width: 140px">
-            <el-option v-for="p in PROJECTS" :key="p" :label="p" :value="p" />
+          <el-select v-model="user.project" size="small" style="width: 140px" placeholder="选择项目部">
+            <el-option v-for="u in projectOptions" :key="u.id" :label="u.name" :value="u.name" />
           </el-select>
           <el-badge is-dot class="bell-badge">
             <el-icon :size="19" class="bell-icon"><Bell /></el-icon>

@@ -1,36 +1,36 @@
 import { defineStore } from 'pinia'
 import { reactive } from 'vue'
 import type { LeaveRecord } from '@/mock/types'
-import { leaveRecords as seed } from '@/mock/data'
-
-const STORAGE_KEY = 'leave-records-v1'
+import {
+  listLeaves,
+  createLeave,
+  updateLeave,
+  deleteLeave,
+  approveLeave,
+  rejectLeave,
+  type CreateLeaveInput
+} from '@/api/leave'
 
 /** 计入工日扣减的请假类型：事假 / 病假 / 其他（年假、调休等带薪假不扣） */
 const DEDUCTIBLE_TYPES = new Set<LeaveRecord['type']>(['事假', '病假', '其他'])
 
-function load(): LeaveRecord[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) {
-      const a = JSON.parse(raw)
-      if (Array.isArray(a)) return a
-    }
-  } catch {
-    /* 解析失败回退种子 */
-  }
-  return seed.map((r) => ({ ...r }))
-}
+/**
+ * 模块级持久化状态：供公式引擎注入式读取，免 Pinia 激活依赖。
+ * 数据现以后端 PostgreSQL 为准，启动时从 /api/leaves 拉取（按当前角色数据范围过滤）。
+ */
+export const leaveList = reactive<LeaveRecord[]>([])
 
-/** 模块级持久化状态：供公式引擎注入式读取，免 Pinia 激活依赖 */
-export const leaveList = reactive<LeaveRecord[]>(load())
-
-function persist() {
+async function load(): Promise<void> {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(leaveList))
+    const data = await listLeaves()
+    leaveList.splice(0, leaveList.length, ...data)
   } catch {
-    /* 配额异常静默 */
+    /* 加载失败静默，页面显示空列表 */
   }
 }
+
+// 启动即拉取一次（salary.ts 在导入本模块时会顺带触发）
+void load()
 
 function daysBetween(start: string, end: string): number {
   const s = new Date(start).getTime()
@@ -55,6 +55,7 @@ function overlapDays(start: string, end: string, month: string): number {
 /**
  * 当月已批准且计入工日扣减的请假天数（事假/病假/其他），按与月份重叠的自然日计。
  * 这是工资工日勾稽的核心：请假页增删/审批 → 工资岗位工日/岗位工资实时联动。
+ * 读取内存 leaveList（已后端化），salary.ts 直接复用，无需改动。
  */
 export function leaveDaysFor(name: string, month: string): number {
   if (!name || !month) return 0
@@ -70,46 +71,47 @@ export function leaveDaysFor(name: string, month: string): number {
 }
 
 export const useLeaveStore = defineStore('leave', () => {
-  function add(rec: LeaveRecord) {
-    leaveList.unshift(rec)
-    persist()
+  function add(input: CreateLeaveInput) {
+    return createLeave(input).then((created) => {
+      leaveList.unshift(created)
+      return created
+    })
   }
 
   function update(rec: LeaveRecord) {
-    const i = leaveList.findIndex((r) => r.id === rec.id)
-    if (i >= 0) {
-      leaveList[i] = rec
-      persist()
-    }
+    return updateLeave(rec).then((saved) => {
+      const i = leaveList.findIndex((r) => r.id === saved.id)
+      if (i >= 0) leaveList[i] = saved
+      return saved
+    })
   }
 
-  function approve(id: number) {
-    const r = leaveList.find((x) => x.id === id)
-    if (r) {
-      r.status = '已批准'
-      persist()
-    }
+  function approve(id: number, comment?: string) {
+    return approveLeave(id, comment).then((saved) => {
+      const i = leaveList.findIndex((r) => r.id === saved.id)
+      if (i >= 0) leaveList[i] = saved
+      return saved
+    })
   }
 
-  function reject(id: number) {
-    const r = leaveList.find((x) => x.id === id)
-    if (r) {
-      r.status = '已驳回'
-      persist()
-    }
+  function reject(id: number, comment?: string) {
+    return rejectLeave(id, comment).then((saved) => {
+      const i = leaveList.findIndex((r) => r.id === saved.id)
+      if (i >= 0) leaveList[i] = saved
+      return saved
+    })
   }
 
   function remove(id: number) {
-    const i = leaveList.findIndex((r) => r.id === id)
-    if (i >= 0) {
-      leaveList.splice(i, 1)
-      persist()
-    }
+    return deleteLeave(id).then(() => {
+      const i = leaveList.findIndex((r) => r.id === id)
+      if (i >= 0) leaveList.splice(i, 1)
+    })
   }
 
   function daysFor(name: string, month: string): number {
     return leaveDaysFor(name, month)
   }
 
-  return { list: leaveList, add, update, approve, reject, remove, daysFor }
+  return { list: leaveList, load, add, update, approve, reject, remove, daysFor }
 })

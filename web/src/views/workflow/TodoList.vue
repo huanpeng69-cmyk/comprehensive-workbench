@@ -29,7 +29,8 @@ const BIZ_NAMES: Record<string, string> = {
   payroll: '工资发放',
   reception: '公务接待',
   seal: '公章使用',
-  notice: '通知公告'
+  notice: '通知公告',
+  condolence: '慰问金'
 }
 
 const INSTANCE_STATUS: Record<string, { label: string; type: 'primary' | 'success' | 'danger' | 'warning' }> = {

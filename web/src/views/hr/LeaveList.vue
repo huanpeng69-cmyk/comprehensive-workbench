@@ -1,15 +1,13 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue'
+import { computed, reactive, ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import type { LeaveRecord } from '@/mock/types'
 import { useUserStore } from '@/stores/user'
 import { useLeaveStore } from '@/stores/leave'
-import { useRosterStore } from '@/stores/roster'
 
 const user = useUserStore()
 const leaveStore = useLeaveStore()
-const rosterStore = useRosterStore()
 
 const LEAVE_TYPES: LeaveRecord['type'][] = ['事假', '病假', '年假', '调休', '婚假', '产假', '护理假', '其他']
 
@@ -29,21 +27,17 @@ function daysBetween(start: string, end: string) {
   return Math.round((e - s) / 86400000) + 1
 }
 
-function today() {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-
 const dialogVisible = ref(false)
+const dialogMode = ref<'create' | 'edit'>('create')
+const editingId = ref<number | null>(null)
+const editingRow = ref<LeaveRecord | null>(null)
 const formRef = ref<FormInstance>()
 const form = reactive({
-  applicant: '',
   type: '事假' as LeaveRecord['type'],
   range: [] as string[],
   reason: ''
 })
 const rules: FormRules = {
-  applicant: [{ required: true, message: '请选择申请人', trigger: 'change' }],
   type: [{ required: true, message: '请选择请假类型', trigger: 'change' }],
   range: [{ required: true, message: '请选择请假日期', trigger: 'change' }],
   reason: [{ required: true, message: '请填写请假事由', trigger: 'blur' }]
@@ -58,10 +52,23 @@ const stats = computed(() => ({
 }))
 
 function openDialog() {
-  form.applicant = ''
+  dialogMode.value = 'create'
+  editingId.value = null
+  editingRow.value = null
   form.type = '事假'
   form.range = []
   form.reason = ''
+  dialogVisible.value = true
+}
+
+/** 改：编辑待审批的请假（与后端「仅待审批可修改」一致）。 */
+function openEdit(row: LeaveRecord) {
+  dialogMode.value = 'edit'
+  editingId.value = row.id
+  editingRow.value = row
+  form.type = row.type
+  form.range = [row.start, row.end]
+  form.reason = row.reason
   dialogVisible.value = true
 }
 
@@ -70,38 +77,61 @@ async function onSubmit() {
   await formRef.value.validate((valid) => {
     if (!valid) return
     const [start, end] = form.range
-    const member = rosterStore.list.find((m) => m.name === form.applicant)
-    leaveStore.add({
-      id: Date.now(),
-      applicant: form.applicant,
-      project: member?.project || user.project,
-      type: form.type,
-      start,
-      end,
-      days: daysBetween(start, end),
-      reason: form.reason,
-      status: '待审批',
-      appliedAt: `${today()} ${new Date().toTimeString().slice(0, 5)}`
-    })
-    dialogVisible.value = false
-    ElMessage.success('请假申请已提交，等待审批')
+    const days = daysBetween(start, end)
+    if (dialogMode.value === 'edit' && editingId.value != null && editingRow.value) {
+      const rec: LeaveRecord = {
+        ...editingRow.value,
+        type: form.type,
+        start,
+        end,
+        days,
+        reason: form.reason
+      }
+      leaveStore
+        .update(rec)
+        .then(() => {
+          dialogVisible.value = false
+          ElMessage.success('请假申请已更新')
+        })
+        .catch((err: any) => ElMessage.error(err?.message || '更新失败'))
+      return
+    }
+    leaveStore
+      .add({
+        type: form.type,
+        start,
+        end,
+        days,
+        reason: form.reason
+      })
+      .then(() => {
+        dialogVisible.value = false
+        ElMessage.success('请假申请已提交，等待项目部负责人审批')
+      })
+      .catch((err: any) => {
+        ElMessage.error(err?.message || '提交失败')
+      })
   })
 }
 
 function approve(row: LeaveRecord) {
-  leaveStore.approve(row.id)
-  ElMessage.success(`已批准 ${row.applicant} 的${row.type}申请`)
+  leaveStore
+    .approve(row.id)
+    .then(() => ElMessage.success(`已批准 ${row.applicant} 的${row.type}申请`))
+    .catch((err: any) => ElMessage.error(err?.message || '审批失败'))
 }
 
 function reject(row: LeaveRecord) {
-  leaveStore.reject(row.id)
-  ElMessage.warning(`已驳回 ${row.applicant} 的${row.type}申请`)
+  leaveStore.reject(row.id).catch((err: any) => ElMessage.error(err?.message || '操作失败'))
 }
 
 function onRemove(row: LeaveRecord) {
-  leaveStore.remove(row.id)
-  ElMessage.info('已删除该请假记录')
+  leaveStore.remove(row.id).catch((err: any) => ElMessage.error(err?.message || '删除失败'))
 }
+
+onMounted(() => {
+  leaveStore.load()
+})
 </script>
 
 <template>
@@ -149,11 +179,12 @@ function onRemove(row: LeaveRecord) {
           </template>
         </el-table-column>
         <el-table-column prop="appliedAt" label="提交时间" width="130" />
-        <el-table-column label="操作" width="180">
+        <el-table-column label="操作" width="220">
           <template #default="{ row }">
             <template v-if="row.status === '待审批'">
               <el-button type="primary" size="small" link @click="approve(row)">批准</el-button>
               <el-button type="danger" size="small" link @click="reject(row)">驳回</el-button>
+              <el-button type="warning" size="small" link @click="openEdit(row)">编辑</el-button>
             </template>
             <el-button type="info" size="small" link @click="onRemove(row)">删除</el-button>
           </template>
@@ -161,12 +192,10 @@ function onRemove(row: LeaveRecord) {
       </el-table>
     </el-card>
 
-    <el-dialog v-model="dialogVisible" title="新建请假申请" width="480px">
+    <el-dialog v-model="dialogVisible" :title="dialogMode === 'edit' ? '编辑请假申请' : '新建请假申请'" width="480px">
       <el-form ref="formRef" :model="form" :rules="rules" label-width="90px">
-        <el-form-item label="申请人" prop="applicant">
-          <el-select v-model="form.applicant" placeholder="选择花名册人员" filterable clearable style="width: 100%">
-            <el-option v-for="m in rosterStore.list" :key="m.id" :label="`${m.name}（${m.project} · ${m.position}）`" :value="m.name" />
-          </el-select>
+        <el-form-item label="申请人">
+          <span>{{ user.name }}（{{ user.project }}）</span>
         </el-form-item>
         <el-form-item label="请假类型" prop="type">
           <el-select v-model="form.type" placeholder="请选择">

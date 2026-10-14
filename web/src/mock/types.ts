@@ -85,6 +85,23 @@ export interface Condolence {
   appliedAt: string
 }
 
+/** 慰问金申请（后端 condolence 表）。workflowInstanceId 供前端跳转流程详情。 */
+export interface CondolenceRecord {
+  id: number
+  applicant: string
+  applicantUsername?: string
+  project?: string
+  category: string
+  reason: string
+  amount: number
+  amountInWords?: string
+  projectUnionOpinion?: string
+  companyUnionOpinion?: string
+  status: string
+  workflowInstanceId?: number | null
+  appliedAt: string
+}
+
 export interface Todo {
   id: number
   title: string

@@ -54,4 +54,8 @@ public class ProcessNode {
 
   @Column(length = 256)
   private String conditionExpr;
+
+  /** 节点说明：向管理员解释该节点的审批口径（V13 新增，阶段 3 ADR-M010）。 */
+  @Column(length = 256)
+  private String description;
 }

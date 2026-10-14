@@ -1,8 +1,7 @@
 import type {
   Staff, PayrollBatch, Notice, SealUsage, PartyFeeRecord, Condolence, Todo, Regulation,
-  LeaveRecord, PartyMember, Reception, WelfareItem, RosterMember
+  LeaveRecord, PartyMember, Reception, WelfareItem
 } from './types'
-import { deriveCategory } from './rosterOptions'
 
 export const PROJECTS = ['云岭项目部', '江湾项目部', '榕荫项目部', '南岸项目部', '荔园项目部']
 
@@ -143,23 +142,3 @@ export const welfareItems: WelfareItem[] = [
   { id: 7, category: '水果', name: '秋季时令水果礼盒', spec: '盒装 5 斤', quantity: 1, recipient: '方静', department: '财务管理部', status: '未领取', signedAt: '' },
   { id: 8, category: '水果', name: '秋季时令水果礼盒', spec: '盒装 5 斤', quantity: 1, recipient: '高峰', department: '设备物资部', status: '已领取', signedAt: '2026-09-16 08:55' }
 ]
-
-// 人员花名册种子数据（对齐「荔园项目2026年7月人员花名册统计表」23 字段）
-type RosterSeed = Omit<RosterMember, 'category'>
-const rosterSeedBase: RosterSeed[] = [
-  { id: 1, seq: 1, name: '陈国栋', gender: '男', idCard: '110101196808010011', phone: '13900000001', age: 43, joinDate: '2013-06-01', employmentType: '正式工', education: '本科', school: '长春工程学院', major: '水利水电工程', title: '正高级工程师', political: '党员', position: '项目经理', adminSeries: '项目经理', profSeries: '无', salaryMechanism: '年薪制', salaryGrade: 'P2（一类）', monthlyPay: 7000, firstAdjust: '2013.06', project: '荔园项目', status: '正常在岗', certificates: '一级建造师（水利）建安B', contractRel: '示范建工' },
-  { id: 2, seq: 2, name: '马晓东', gender: '男', idCard: '110101198507030022', phone: '13900000002', age: 41, joinDate: '2024-08-01', employmentType: '正式工', education: '本科', school: '黑龙江大学', major: '土木工程', title: '工程师', political: '党员', position: '项目副经理', adminSeries: '项目班子副职', profSeries: '无', salaryMechanism: '年薪制', salaryGrade: 'P4（一类）', monthlyPay: 6300, firstAdjust: '2024.08', project: '荔园项目', status: '正常在岗', certificates: '一级建造师（建筑）建安B', contractRel: '示范建工' },
-  { id: 3, seq: 3, name: '何伟', gender: '男', idCard: '110101198911160033', phone: '13900000003', age: 37, joinDate: '2026-01-01', employmentType: '正式工', education: '专科', school: '长沙南方职业学院', major: '建筑工程技术', title: '工程师', political: '群众', position: '副总工程师', adminSeries: '项目班子副总师', profSeries: '无', salaryMechanism: '年薪制', salaryGrade: 'P5', monthlyPay: 5200, firstAdjust: '2026.01', project: '荔园项目', status: '正常在岗', certificates: '', contractRel: '示范建工' },
-  { id: 4, seq: 4, name: '孙长海', gender: '男', idCard: '110101198103150044', phone: '13900000004', age: 45, joinDate: '2022-03-01', employmentType: '临时工', education: '初中', school: '', major: '', title: '', political: '群众', position: '司机', adminSeries: '', profSeries: '无', salaryMechanism: '固定合同', salaryGrade: '', monthlyPay: 4500, firstAdjust: '2022.03', project: '荔园项目', status: '正常在岗', certificates: '', contractRel: '临时工' },
-  { id: 5, seq: 5, name: '蒋大伟', gender: '男', idCard: '110101197611200055', phone: '13900000005', age: 50, joinDate: '2021-05-01', employmentType: '劳务派遣', education: '初中', school: '', major: '', title: '', political: '群众', position: '厨师', adminSeries: '', profSeries: '无', salaryMechanism: '固定合同', salaryGrade: '', monthlyPay: 4200, firstAdjust: '2021.05', project: '荔园项目', status: '正常在岗', certificates: '', contractRel: '临时工' },
-  { id: 6, seq: 6, name: '沈雨欣', gender: '女', idCard: '110101199603120066', phone: '13900000006', age: 30, joinDate: '2023-09-01', employmentType: '正式工', education: '本科', school: '广东工业大学', major: '工程管理', title: '助理工程师', political: '团员', position: '资料员', adminSeries: '', profSeries: '业务员', salaryMechanism: '岗位绩效制', salaryGrade: 'P8', monthlyPay: 5800, firstAdjust: '2023.09', project: '荔园项目', status: '正常在岗', certificates: '', contractRel: '城建公司' },
-  { id: 7, seq: 7, name: '罗建华', gender: '男', idCard: '110101199011080077', phone: '13900000007', age: 35, joinDate: '2020-11-01', employmentType: '正式工', education: '专科', school: '广州城建职业学院', major: '工程造价', title: '工程师', political: '党员', position: '合同管理员', adminSeries: '项目部门正职', profSeries: '无', salaryMechanism: '岗位绩效制', salaryGrade: 'P6', monthlyPay: 6100, firstAdjust: '2020.11', project: '荔园项目', status: '正常在岗', certificates: '', contractRel: '示范建工' },
-  { id: 8, seq: 8, name: '唐子豪', gender: '男', idCard: '110101199804150088', phone: '13900000008', age: 28, joinDate: '2024-02-01', employmentType: '劳务派遣', education: '本科', school: '华南理工大学', major: '安全工程', title: '技术员', political: '群众', position: '安全员', adminSeries: '', profSeries: '业务员', salaryMechanism: '岗位绩效制', salaryGrade: 'P9', monthlyPay: 5000, firstAdjust: '2024.02', project: '荔园项目', status: '正常在岗', certificates: '', contractRel: '城建公司' },
-  { id: 9, seq: 9, name: '谢文婷', gender: '女', idCard: '110101199303200099', phone: '13900000009', age: 33, joinDate: '2019-07-01', employmentType: '正式工', education: '本科', school: '中山大学', major: '财务会计', title: '工程师', political: '党员', position: '会计', adminSeries: '项目部门正职', profSeries: '无', salaryMechanism: '岗位绩效制', salaryGrade: 'P7', monthlyPay: 6500, firstAdjust: '2019.07', project: '荔园项目', status: '正常在岗', certificates: '', contractRel: '示范建工' },
-  { id: 10, seq: 10, name: '卢守义', gender: '男', idCard: '110101197911050010', phone: '13900000010', age: 47, joinDate: '2018-04-01', employmentType: '临时工', education: '高中', school: '', major: '', title: '', political: '群众', position: '门卫', adminSeries: '', profSeries: '无', salaryMechanism: '固定合同', salaryGrade: '', monthlyPay: 3800, firstAdjust: '2018.04', project: '荔园项目', status: '正常在岗', certificates: '', contractRel: '临时工' }
-]
-export const rosterList: RosterMember[] = rosterSeedBase.map((r) => ({
-  ...r,
-  category: deriveCategory(r)
-}))
-

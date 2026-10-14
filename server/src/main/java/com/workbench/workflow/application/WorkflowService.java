@@ -3,12 +3,14 @@ package com.workbench.workflow.application;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.workbench.audit.application.AuditService;
-import com.workbench.identity.domain.OrgUnit;
-import com.workbench.identity.domain.User;
-import com.workbench.identity.repository.OrgUnitRepository;
-import com.workbench.identity.repository.UserRepository;
+import com.workbench.platform.datascope.DataScopeResolver;
+import com.workbench.platform.org.OrgQueryPort;
+import com.workbench.platform.org.OrgUnitRef;
+import com.workbench.platform.org.WriteOwnershipResolver;
+import com.workbench.platform.org.UserQueryPort;
 import com.workbench.security.CurrentUserHolder;
 import com.workbench.workflow.application.dto.InstanceSummaryVo;
+import com.workbench.workflow.application.dto.NodeCommentRecord;
 import com.workbench.workflow.application.dto.ProcessDefinitionVo;
 import com.workbench.workflow.application.dto.ProcessInstanceVo;
 import com.workbench.workflow.application.dto.ProcessInstanceVo.NodeProgress;
@@ -53,6 +55,9 @@ import org.springframework.util.StringUtils;
  *
  * <p>审批人类型：USER 指定用户 / ROLE 角色 / PROJECT_LEADER 实例所属项目部经理 /
  * INITIATOR 发起人。multiType PARALLEL 为会签（全部通过才流转），SINGLE 为任一通过即流转。</p>
+ *
+ * <p>数据范围（阶段 2，ADR-M008）：实例按归属单位（company_id）隔离——待办、我发起的、
+ * 实例详情与全部写操作只限本单位；越权访问先写 ACCESS_DENIED 审计再拒绝。</p>
  */
 @Service
 public class WorkflowService {
@@ -63,25 +68,34 @@ public class WorkflowService {
   private final ProcessNodeRepository nodeRepository;
   private final ProcessInstanceRepository instanceRepository;
   private final TaskRepository taskRepository;
-  private final UserRepository userRepository;
-  private final OrgUnitRepository orgUnitRepository;
+  private final UserQueryPort userQueryPort;
+  private final OrgQueryPort orgQueryPort;
   private final AuditService auditService;
+  private final BizCompletionRegistry completionRegistry;
+  private final DataScopeResolver dataScopeResolver;
+  private final WriteOwnershipResolver writeOwnershipResolver;
   private final ExpressionParser parser = new SpelExpressionParser();
 
   public WorkflowService(ProcessDefinitionRepository definitionRepository,
       ProcessNodeRepository nodeRepository,
       ProcessInstanceRepository instanceRepository,
       TaskRepository taskRepository,
-      UserRepository userRepository,
-      OrgUnitRepository orgUnitRepository,
-      AuditService auditService) {
+      UserQueryPort userQueryPort,
+      OrgQueryPort orgQueryPort,
+      AuditService auditService,
+      BizCompletionRegistry completionRegistry,
+      DataScopeResolver dataScopeResolver,
+      WriteOwnershipResolver writeOwnershipResolver) {
     this.definitionRepository = definitionRepository;
     this.nodeRepository = nodeRepository;
     this.instanceRepository = instanceRepository;
     this.taskRepository = taskRepository;
-    this.userRepository = userRepository;
-    this.orgUnitRepository = orgUnitRepository;
+    this.userQueryPort = userQueryPort;
+    this.orgQueryPort = orgQueryPort;
     this.auditService = auditService;
+    this.completionRegistry = completionRegistry;
+    this.dataScopeResolver = dataScopeResolver;
+    this.writeOwnershipResolver = writeOwnershipResolver;
   }
 
   /** 发起流程。 */
@@ -90,13 +104,15 @@ public class WorkflowService {
     ProcessDefinition definition = definitionRepository
         .findFirstByBizTypeAndEnabledTrueOrderByVersionDesc(request.bizType())
         .orElseThrow(() -> new IllegalArgumentException("未找到启用的流程定义: " + request.bizType()));
+    Long projectId = CurrentUserHolder.currentProjectId();
     ProcessInstance instance = ProcessInstance.builder()
         .definitionId(definition.getId())
         .bizType(definition.getBizType())
         .bizId(request.bizId())
         .title(request.title())
         .initiator(CurrentUserHolder.currentUsername())
-        .projectId(CurrentUserHolder.currentProjectId())
+        .projectId(projectId)
+        .companyId(writeOwnershipResolver.requireCompanyId(projectId, "PROCESS_INSTANCE", "发起流程"))
         .status("RUNNING")
         .variables(writeJson(request.variables()))
         .createdAt(LocalDateTime.now())
@@ -108,10 +124,14 @@ public class WorkflowService {
     return toSummary(instance);
   }
 
-  /** 我的待办：名下未处理且实例进行中的任务。 */
+  /** 我的待办：名下未处理且实例进行中的任务，实例须归属本单位（用户名不再全局唯一，ADR-M006）。 */
   @Transactional(readOnly = true)
   public List<TaskVo> myTodos() {
-    List<Task> tasks = taskRepository.findMyTodos(CurrentUserHolder.currentUsername());
+    Long companyId = dataScopeResolver.currentCompanyId();
+    if (companyId == null) {
+      return List.of();
+    }
+    List<Task> tasks = taskRepository.findMyTodos(CurrentUserHolder.currentUsername(), companyId);
     if (tasks.isEmpty()) {
       return List.of();
     }
@@ -132,13 +152,32 @@ public class WorkflowService {
         .toList();
   }
 
-  /** 我发起的流程。 */
+  /** 我发起的流程（限本单位：用户名不再全局唯一，ADR-M006）。 */
   @Transactional(readOnly = true)
   public List<InstanceSummaryVo> myInstances() {
+    Long companyId = dataScopeResolver.currentCompanyId();
+    if (companyId == null) {
+      return List.of();
+    }
     return instanceRepository
-        .findByInitiatorOrderByCreatedAtDesc(CurrentUserHolder.currentUsername())
+        .findByCompanyIdAndInitiatorOrderByCreatedAtDesc(companyId,
+            CurrentUserHolder.currentUsername())
         .stream()
         .map(this::toSummary)
+        .toList();
+  }
+
+  /**
+   * 实例各节点的审批意见（仅取 APPROVED 任务，按节点 seq 升序），供业务模块完结时回填真实审批结论。
+   *
+   * <p>必须过滤非 APPROVED 任务：SINGLE 节点中未轮到的一方任务会被置为 CANCELLED
+   * （comment='其他审批人已处理'），若不过滤，forEach 回填时会用该占位 comment 覆盖真实意见。</p>
+   */
+  @Transactional(readOnly = true)
+  public List<NodeCommentRecord> instanceTaskComments(Long instanceId) {
+    return taskRepository.findByInstanceIdOrderByNodeSeqAscCreatedAtAsc(instanceId).stream()
+        .filter(t -> "APPROVED".equals(t.getStatus()))
+        .map(t -> new NodeCommentRecord(t.getNodeSeq(), t.getComment()))
         .toList();
   }
 
@@ -147,6 +186,7 @@ public class WorkflowService {
   public ProcessInstanceVo instanceDetail(Long instanceId) {
     ProcessInstance instance = instanceRepository.findById(instanceId)
         .orElseThrow(() -> new EntityNotFoundException("流程实例不存在"));
+    assertCompanyAccess(instance);
     List<ProcessNode> nodes = nodeRepository.findByDefinitionIdOrderBySeq(instance.getDefinitionId());
     List<Task> tasks = taskRepository.findByInstanceIdOrderByNodeSeqAscCreatedAtAsc(instanceId);
     Map<Integer, List<Task>> tasksByNode = tasks.stream()
@@ -169,7 +209,7 @@ public class WorkflowService {
         .findFirst()
         .orElse(null);
     String projectName = instance.getProjectId() == null ? null
-        : orgUnitRepository.findById(instance.getProjectId()).map(OrgUnit::getName).orElse(null);
+        : orgQueryPort.findById(instance.getProjectId()).map(OrgUnitRef::name).orElse(null);
     return new ProcessInstanceVo(instance.getId(), instance.getBizType(), instance.getTitle(),
         instance.getInitiator(), names.get(instance.getInitiator()), projectName, instance.getStatus(),
         instance.getCreatedAt(), instance.getFinishedAt(), currentNodeName, progress, history);
@@ -243,6 +283,28 @@ public class WorkflowService {
     instanceRepository.save(instance);
     auditService.log("REJECT", "PROCESS_INSTANCE", String.valueOf(instance.getId()),
         "驳回「" + task.getNodeName() + "」: " + instance.getTitle());
+    completionRegistry.complete(instance.getBizType(), instance.getBizId(), "REJECTED");
+  }
+
+  /**
+   * 按实例直接通过：找到该实例首个待处理任务并审批。
+   * 供业务模块内联审批调用（如请假页「批准」按钮）；审批人校验由 approve 内部 ensureAssignee 保证。
+   */
+  @Transactional
+  public void approveByInstance(Long instanceId, TaskActionRequest request) {
+    Task task = taskRepository
+        .findFirstByInstanceIdAndStatusOrderByNodeSeqAscCreatedAtAsc(instanceId, "PENDING")
+        .orElseThrow(() -> new IllegalStateException("该流程当前无待处理任务"));
+    approve(task.getId(), request);
+  }
+
+  /** 按实例直接驳回：语义同 approveByInstance。 */
+  @Transactional
+  public void rejectByInstance(Long instanceId, TaskActionRequest request) {
+    Task task = taskRepository
+        .findFirstByInstanceIdAndStatusOrderByNodeSeqAscCreatedAtAsc(instanceId, "PENDING")
+        .orElseThrow(() -> new IllegalStateException("该流程当前无待处理任务"));
+    reject(task.getId(), request);
   }
 
   /** 转办：原任务留痕，新任务指派给目标用户。 */
@@ -251,7 +313,8 @@ public class WorkflowService {
     Task task = loadTask(taskId);
     ensureAssignee(task);
     ProcessInstance instance = loadInstance(task.getInstanceId());
-        if (!userRepository.existsByUsername(request.toUsername())) {
+    if (!userQueryPort.existsByCompanyIdAndUsername(instance.getCompanyId(),
+        request.toUsername())) {
       throw new IllegalArgumentException("目标用户不存在: " + request.toUsername());
     }
     task.setStatus("TRANSMITTED");
@@ -294,6 +357,7 @@ public class WorkflowService {
           instanceRepository.save(instance);
           auditService.log("COMPLETE", "PROCESS_INSTANCE", String.valueOf(instance.getId()),
               "流程完成: " + instance.getTitle());
+          completionRegistry.complete(instance.getBizType(), instance.getBizId(), "COMPLETED");
           return;
         }
         case "CC" -> {
@@ -352,6 +416,19 @@ public class WorkflowService {
         .getValue(context, Boolean.class));
   }
 
+  /**
+   * 单位边界（阶段 2，ADR-M008）：只能查看/操作本单位的流程实例。越权先写 ACCESS_DENIED 审计
+   * 再拒绝；实例 company_id 为空同样拒绝——宁可拒绝也不跨单位猜测。
+   */
+  private void assertCompanyAccess(ProcessInstance instance) {
+    if (dataScopeResolver.canAccessCompany(instance.getCompanyId())) {
+      return;
+    }
+    auditService.log(CurrentUserHolder.currentUsername(), "ACCESS_DENIED", "PROCESS_INSTANCE",
+        String.valueOf(instance.getId()), "尝试越权访问非本单位的流程实例");
+    throw new AccessDeniedException("无权访问其他单位的流程实例");
+  }
+
   private List<String> resolveAssignees(ProcessNode node, ProcessInstance instance) {
     String expr = node.getAssigneeExpr();
     switch (node.getAssigneeType()) {
@@ -360,13 +437,10 @@ public class WorkflowService {
             ? Arrays.stream(expr.split(",")).map(String::trim).filter(s -> !s.isEmpty()).toList()
             : List.of();
       case "ROLE":
-        return userRepository.findEnabledByRoleCode(expr).stream()
-            .map(User::getUsername).toList();
+        return userQueryPort.findEnabledUsernamesByRoleCodeAndCompanyId(expr, instance.getCompanyId());
       case "PROJECT_LEADER":
-        return userRepository
-            .findEnabledByRoleCodeAndProjectId(
-                StringUtils.hasText(expr) ? expr : "PROJECT_MANAGER", instance.getProjectId())
-            .stream().map(User::getUsername).toList();
+        return userQueryPort.findEnabledUsernamesByRoleCodeAndProjectId(
+            StringUtils.hasText(expr) ? expr : "PROJECT_MANAGER", instance.getProjectId());
       case "INITIATOR":
         return List.of(instance.getInitiator());
       default:
@@ -419,8 +493,8 @@ public class WorkflowService {
     if (usernames == null || usernames.isEmpty()) {
       return new HashMap<>();
     }
-    return userRepository.findByUsernameIn(usernames).stream()
-        .collect(Collectors.toMap(User::getUsername, User::getName, (a, b) -> a));
+    // instanceDetail 会对本方法返回值做 putAll，必须返回可变 Map（不依赖适配器实现）
+    return new HashMap<>(userQueryPort.findNamesByUsernames(usernames));
   }
 
   private Task loadTask(Long taskId) {
@@ -431,6 +505,7 @@ public class WorkflowService {
   private ProcessInstance loadInstance(Long instanceId) {
     ProcessInstance instance = instanceRepository.findById(instanceId)
         .orElseThrow(() -> new EntityNotFoundException("流程实例不存在"));
+    assertCompanyAccess(instance);
     if (!"RUNNING".equals(instance.getStatus())) {
       throw new IllegalStateException("流程已结束，无法继续操作");
     }

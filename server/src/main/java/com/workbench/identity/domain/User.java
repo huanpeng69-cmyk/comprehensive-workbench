@@ -27,7 +27,8 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 /**
- * 用户账号。project_id 表示其所属项目部，是数据权限的过滤维度。
+ * 用户账号。company_id 是数据隔离维度，角色生效范围由所属公司决定（ADR-M002/ADR-M003）；
+ * project_id 表示其所属项目部，是数据范围过滤维度。
  */
 @Entity
 @Table(name = "sys_user")
@@ -42,7 +43,7 @@ public class User {
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
 
-  @Column(nullable = false, unique = true, length = 32)
+  @Column(nullable = false, length = 32)
   private String username;
 
   @Column(nullable = false, length = 64)
@@ -70,4 +71,11 @@ public class User {
 
   @Column(nullable = false)
   private Boolean enabled;
+  /** 所属公司（org_unit.id, type=COMPANY）：唯一性为 (company_id, username) 复合（ADR-M006） */
+  @Column(name = "company_id", nullable = false)
+  private Long companyId;
+
+  /** 预留：统一身份认证外部 ID（本期只建列，不写业务逻辑，ADR-M006） */
+  @Column(name = "external_id", length = 64)
+  private String externalId;
 }

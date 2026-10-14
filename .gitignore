@@ -4,6 +4,14 @@ server/config/application.yml
 server/config/application-*.yml
 *.pem
 *.keystore
+# AI 写作台本地密钥（与 start-workbench.bat 同目录）
+.aikey
+*.aikey
+# 项目根 .env：手动填的 Agnes API Key 与代理，绝不入库
+/.env
+# 企业知识库服务令牌（与 start-workbench.bat 同目录，须与 KB .env 的 KB_SERVICE_TOKEN 一致）
+.kbtoken
+*.kbtoken
 
 # ===== 运行时数据（含 PostgreSQL/Redis 数据文件）=====
 server/.docker-data/
@@ -50,3 +58,20 @@ server/regulations/
 server/.tools/
 # 一次性数据提取/诊断脚本与原始档案文本、截图
 tools/
+
+# ===== 备份与数据库转储：含真实业务数据，绝不入库 =====
+# 制度原文备份目录（含未公开制度正文）
+backup/
+server/backup-*.sql
+server/backup-*.dump
+
+# ===== 运行/调试残留（含 token、截图、临时产物）=====
+server/logs.*
+login_*.json
+Temp/
+.pi/
+web/vite.config.ts.timestamp-*.mjs
+# 一次性测试/诊断脚本
+server/leave_lifecycle_test.py
+# 误创建的 0 字节重定向残留
+backend(8080)

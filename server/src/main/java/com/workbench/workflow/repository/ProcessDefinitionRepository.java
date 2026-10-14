@@ -11,4 +11,10 @@ public interface ProcessDefinitionRepository extends JpaRepository<ProcessDefini
   Optional<ProcessDefinition> findFirstByBizTypeAndEnabledTrueOrderByVersionDesc(String bizType);
 
   List<ProcessDefinition> findByEnabledTrueOrderByIdAsc();
+
+  /** 按 code 判断定义是否已写入：不能用全表 count（V8 迁移已种 condolence 定义，新库 count 恒 > 0）。 */
+  boolean existsByCode(String code);
+
+  /** 管理端：全部定义（含停用），按 id 升序。 */
+  List<ProcessDefinition> findAllByOrderByIdAsc();
 }

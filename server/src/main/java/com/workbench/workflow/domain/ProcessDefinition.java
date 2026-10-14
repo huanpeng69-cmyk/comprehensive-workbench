@@ -42,4 +42,8 @@ public class ProcessDefinition {
 
   @Column(nullable = false)
   private Boolean enabled;
+
+  /** 流程定义说明：向管理员解释该流程的用途（V13 新增，阶段 3 ADR-M010）。 */
+  @Column(length = 256)
+  private String description;
 }

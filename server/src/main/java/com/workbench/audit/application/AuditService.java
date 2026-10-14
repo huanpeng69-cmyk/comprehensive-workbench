@@ -31,8 +31,10 @@ public class AuditService {
    */
   @Transactional(propagation = Propagation.REQUIRES_NEW)
   public void log(String username, String action, String targetType, String targetId, String detail) {
+    // 异步线程或登录前场景可能取不到用户名，用 anonymous 兜底避免非空约束报错。
+    String safeUsername = username == null || username.isBlank() ? "anonymous" : username;
     auditLogRepository.save(AuditLog.builder()
-        .username(username)
+        .username(safeUsername)
         .action(action)
         .targetType(targetType)
         .targetId(targetId)

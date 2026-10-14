@@ -85,11 +85,11 @@ async function onFileChange(e: Event) {
   try {
     const members = await parseRosterXlsx(file)
     await ElMessageBox.confirm(
-      `将导入 ${members.length} 条人员记录并覆盖当前列表，是否继续？`,
+      `将导入 ${members.length} 条人员记录并覆盖服务器当前花名册，是否继续？`,
       '导入确认',
       { type: 'warning', confirmButtonText: '覆盖导入', cancelButtonText: '取消' }
     )
-    store.importReplace(members)
+    await store.importReplace(members)
     ElMessage.success(`已导入 ${members.length} 条记录`)
   } catch (err) {
     if (err && (err as { message?: string }).message) ElMessage.error((err as { message: string }).message)
@@ -99,13 +99,11 @@ async function onFileChange(e: Event) {
 }
 
 function onResetData() {
-  ElMessageBox.confirm('将清除本地修改，恢复到初始种子数据，是否继续？', '重置确认', {
+  ElMessageBox.confirm('将放弃本地未同步的展示状态，重新从服务器加载花名册，是否继续？', '重新加载确认', {
     type: 'warning'
   })
-    .then(() => {
-      store.resetToSeed()
-      ElMessage.success('已恢复初始数据')
-    })
+    .then(() => store.resetToSeed())
+    .then(() => ElMessage.success('已从服务器重新加载'))
     .catch(() => {})
 }
 
@@ -138,7 +136,7 @@ function blankMember(): Record<string, any> {
     salaryGrade: '',
     monthlyPay: 0,
     firstAdjust: '',
-    project: '荔园项目',
+    project: '红茶项目部',
     status: '正常在岗',
     certificates: '',
     contractRel: '示范建工'
@@ -168,24 +166,29 @@ function onSave() {
   formRef.value?.validate((valid: boolean) => {
     if (!valid) return
     const category = deriveCategory({ employmentType: form.employmentType, position: form.position })
-    if (dialogMode.value === 'add') {
-      store.add({ ...(form as Omit<RosterMember, 'id'>), category })
-    } else {
-      store.update({ ...(form as RosterMember), category })
-    }
-    dialogVisible.value = false
-    ElMessage.success(dialogMode.value === 'add' ? '已新增人员' : '已保存修改')
+    const isAdd = dialogMode.value === 'add'
+    const req = isAdd
+      ? store.add({ ...(form as Omit<RosterMember, 'id'>), category })
+      : store.update({ ...(form as RosterMember), category })
+    req
+      .then(() => {
+        dialogVisible.value = false
+        ElMessage.success(isAdd ? '已新增人员' : '已保存修改')
+      })
+      .catch((err: unknown) => {
+        ElMessage.error(err instanceof Error ? err.message : '保存失败')
+      })
   })
 }
 
 /* ---------- 删除 / 详情 ---------- */
 function onDelete(row: RosterMember) {
   ElMessageBox.confirm(`确认删除「${row.name}」的记录？`, '删除确认', { type: 'warning' })
-    .then(() => {
-      store.remove(row.id)
-      ElMessage.success('已删除')
+    .then(() => store.remove(row.id))
+    .then(() => ElMessage.success('已删除'))
+    .catch((err: unknown) => {
+      if (err instanceof Error) ElMessage.error(err.message)
     })
-    .catch(() => {})
 }
 
 const detailVisible = ref(false)

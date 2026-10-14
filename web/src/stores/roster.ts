@@ -1,98 +1,66 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { rosterList } from '@/mock/data'
+import {
+  listEmployees,
+  createEmployee,
+  updateEmployee,
+  deleteEmployee,
+  importEmployees
+} from '@/api/employee'
 import type { RosterMember } from '@/mock/types'
 
-const STORAGE_KEY = 'roster-list-v1'
-
-/** 旧版本 localStorage 数据可能缺字段（如 phone），统一补默认值 */
-function normalizeMember(r: Record<string, any>): RosterMember {
-  return {
-    id: Number(r?.id) || 0,
-    seq: Number(r?.seq) || 0,
-    name: String(r?.name ?? ''),
-    gender: (r?.gender === '女' ? '女' : '男') as RosterMember['gender'],
-    idCard: String(r?.idCard ?? ''),
-    phone: String(r?.phone ?? ''),
-    age: Number(r?.age) || 0,
-    joinDate: String(r?.joinDate ?? ''),
-    employmentType: (r?.employmentType ?? '临时工') as RosterMember['employmentType'],
-    education: (r?.education ?? '高中') as RosterMember['education'],
-    school: String(r?.school ?? ''),
-    major: String(r?.major ?? ''),
-    title: String(r?.title ?? ''),
-    political: (r?.political ?? '群众') as RosterMember['political'],
-    position: String(r?.position ?? ''),
-    adminSeries: String(r?.adminSeries ?? ''),
-    profSeries: (r?.profSeries ?? '无') as RosterMember['profSeries'],
-    salaryMechanism: (r?.salaryMechanism ?? '岗位绩效制') as RosterMember['salaryMechanism'],
-    salaryGrade: String(r?.salaryGrade ?? ''),
-    monthlyPay: Number(r?.monthlyPay) || 0,
-    firstAdjust: String(r?.firstAdjust ?? ''),
-    project: String(r?.project ?? '荔园项目'),
-    status: String(r?.status ?? '正常在岗'),
-    certificates: String(r?.certificates ?? ''),
-    contractRel: (r?.contractRel ?? '示范建工') as RosterMember['contractRel'],
-    category: (r?.category ?? '临时工') as RosterMember['category']
-  }
-}
-
-function loadInitial(): RosterMember[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) {
-      const arr = JSON.parse(raw)
-      if (Array.isArray(arr) && arr.length) return arr.map(normalizeMember)
-    }
-  } catch {
-    /* 解析失败则回退到种子数据 */
-  }
-  return JSON.parse(JSON.stringify(rosterList))
-}
-
+/**
+ * 人员花名册 store：数据源为后端 PostgreSQL（/api/employees）。
+ * 旧版 localStorage（roster-list-v1）不再读写；历史数据请通过
+ * 「花名册导入」Excel 重新进入数据库。
+ */
 export const useRosterStore = defineStore('roster', () => {
-  const list = ref<RosterMember[]>(loadInitial())
+  const list = ref<RosterMember[]>([])
+  const loading = ref(false)
 
-  function persist() {
+  /** 从服务器拉取（按当前用户数据范围过滤） */
+  async function load() {
+    loading.value = true
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(list.value))
-    } catch {
-      /* 存储配额异常时静默失败，不影响内存态 */
+      list.value = await listEmployees()
+    } finally {
+      loading.value = false
     }
-  }
-
-  function nextId(): number {
-    return list.value.reduce((m, r) => Math.max(m, r.id), 0) + 1
   }
 
   function add(member: Omit<RosterMember, 'id'>) {
-    list.value.push({ ...member, id: nextId() })
-    persist()
+    return createEmployee(member).then((created) => {
+      list.value.push(created)
+      return created
+    })
   }
 
   function update(member: RosterMember) {
-    const i = list.value.findIndex((r) => r.id === member.id)
-    if (i >= 0) {
-      list.value[i] = { ...member }
-      persist()
-    }
+    return updateEmployee(member).then((saved) => {
+      const i = list.value.findIndex((r) => r.id === saved.id)
+      if (i >= 0) list.value[i] = saved
+      return saved
+    })
   }
 
   function remove(id: number) {
-    list.value = list.value.filter((r) => r.id !== id)
-    persist()
+    return deleteEmployee(id).then(() => {
+      list.value = list.value.filter((r) => r.id !== id)
+    })
   }
 
-  /** 导入时用上传结果整体替换 */
+  /** 导入：解析结果整体覆盖服务器数据，成功后重新拉取 */
   function importReplace(members: RosterMember[]) {
-    list.value = members
-    persist()
+    return importEmployees(members).then(() => load())
   }
 
+  /** 兼容旧接口名：现在语义是「重新从服务器加载」，不再是恢复种子数据 */
   function resetToSeed() {
-    list.value = JSON.parse(JSON.stringify(rosterList))
-    persist()
+    return load()
   }
 
-  return { list, add, update, remove, importReplace, resetToSeed, persist }
+  // 页面初始化时拉取一次；失败静默，页面显示空列表（后端异常时会有统一错误提示路径）
+  void load().catch(() => {})
+
+  return { list, loading, load, add, update, remove, importReplace, resetToSeed }
 })

@@ -44,4 +44,7 @@ public class OrgUnit {
 
   @Column(nullable = false)
   private Boolean enabled;
+  /** 所属公司（org_unit.id, type=COMPANY）；COMPANY 行等于自身 id（ADR-M002） */
+  @Column(name = "company_id", nullable = false)
+  private Long companyId;
 }

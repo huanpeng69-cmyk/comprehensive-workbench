@@ -6,5 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface ProcessInstanceRepository extends JpaRepository<ProcessInstance, Long> {
 
-  List<ProcessInstance> findByInitiatorOrderByCreatedAtDesc(String initiator);
+  /** 本单位内「我发起的」流程（阶段 2：用户名只在单位内唯一，必须带单位维度，ADR-M006）。 */
+  List<ProcessInstance> findByCompanyIdAndInitiatorOrderByCreatedAtDesc(Long companyId,
+      String initiator);
 }

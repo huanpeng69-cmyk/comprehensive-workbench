@@ -3,7 +3,7 @@ import { computed, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useSalaryStore } from '@/stores/salary'
 import { useRosterStore } from '@/stores/roster'
-import type { SalaryRecord, SalaryMonthData, GradeStandard } from '@/mock/types'
+import type { SalaryRecord, SalaryMonthData, GradeStandard, PerfRecord } from '@/mock/types'
 import { SALARY_FIELD_LABELS, DUE_FORMULA, NET_FORMULA, BASE_FORMULA_BY_FIELD, GRADE_STD_FIELD_LABELS } from '@/mock/salaryOptions'
 import { parseSalaryXlsx } from '@/utils/salaryExcel'
 import { salaryVal, isFormula, money, insuranceTotal } from '@/utils/salary'
@@ -67,7 +67,7 @@ async function onFileChange(e: Event) {
       '导入确认',
       { type: 'warning', confirmButtonText: '覆盖导入', cancelButtonText: '取消' }
     )
-    store.importMonth(data)
+    await store.importMonth(data)
     activeMonth.value = data.month
     seedGradeStandard()
     ElMessage.success(`已导入 ${data.month}：${data.records.length} 人工资、${data.perf.length} 条绩效`)
@@ -81,11 +81,11 @@ async function onFileChange(e: Event) {
 function onRemoveMonth() {
   if (!activeMonth.value) return
   ElMessageBox.confirm(`将删除 ${activeMonth.value} 的全部工资制作数据，是否继续？`, '删除确认', { type: 'warning' })
-    .then(() => {
-      store.removeMonth(activeMonth.value)
-      ElMessage.success('已删除')
+    .then(() => store.removeMonth(activeMonth.value))
+    .then(() => ElMessage.success('已删除'))
+    .catch((err: unknown) => {
+      if (err instanceof Error) ElMessage.error(err.message)
     })
-    .catch(() => {})
 }
 
 /* ---------- 分组标签页 ---------- */
@@ -128,6 +128,27 @@ function diffProps(row: SalaryRecord) {
 const editVisible = ref(false)
 const editing = reactive<Record<string, any>>({})
 const editingOrigin = ref<SalaryRecord | null>(null)
+const dialogMode = ref<'edit' | 'add'>('edit')
+
+function blankSalary(): Record<string, any> {
+  return {
+    id: '', month: '', department: '', seq: 0, name: '', salaryGrade: '',
+    postDays: '0', postSalary: '0', titleAllowance: '0', otDays: '0', overtime: '0',
+    bonus: '0', makeUp: '0', seniority: '0', siteAllowance: '0', dueTotal: '',
+    pension: '0', unemployment: '0', medical: '0', housingFund: '0', annuity: '0',
+    largeMedical: '0', otherDeduct: '0', childEdu: '0', continuingEdu: '0',
+    housingLoan: '0', housingRent: '0', elderlyCare: '0', infantCare: '0',
+    tax: '0', taxAdjust: '0', deduct: '0', netTotal: '', monthPerf: '0', unionFee: '0',
+    sign: '', importedDue: undefined, importedNet: undefined
+  }
+}
+
+function openAdd() {
+  dialogMode.value = 'add'
+  Object.assign(editing, blankSalary())
+  editingOrigin.value = null
+  editVisible.value = true
+}
 
 const GROUPS: { title: string; fields: (keyof SalaryRecord)[] }[] = [
   {
@@ -141,6 +162,7 @@ const GROUPS: { title: string; fields: (keyof SalaryRecord)[] }[] = [
 ]
 
 function openEdit(row: SalaryRecord) {
+  dialogMode.value = 'edit'
   editingOrigin.value = row
   Object.assign(editing, JSON.parse(JSON.stringify(row)))
   editVisible.value = true
@@ -155,7 +177,14 @@ const liveDeductAll = computed(
 )
 
 function onSave() {
-  if (!editingOrigin.value || !activeMonth.value) return
+  if (!activeMonth.value) return
+  if (dialogMode.value === 'add') {
+    store.addRecord(activeMonth.value, editing as unknown as SalaryRecord)
+      .then(() => { editVisible.value = false; ElMessage.success('已新增工资记录') })
+      .catch((err: unknown) => { ElMessage.error(err instanceof Error ? err.message : '新增失败') })
+    return
+  }
+  if (!editingOrigin.value) return
   const next = { ...(editingOrigin.value), ...(editing as unknown as SalaryRecord) } as SalaryRecord
   // 空值归一为 0（签字除外）
   const bag = next as unknown as Record<string, unknown>
@@ -164,11 +193,83 @@ function onSave() {
     const v = bag[k]
     if (v === '' || v == null) bag[k] = 0
   }
-  store.updateRecord(activeMonth.value, next)
-  editVisible.value = false
-  ElMessage.success('已保存并按公式重算')
+  store
+    .updateRecord(activeMonth.value, next)
+    .then(() => {
+      editVisible.value = false
+      ElMessage.success('已保存并按公式重算')
+    })
+    .catch((err: unknown) => {
+      ElMessage.error(err instanceof Error ? err.message : '保存失败')
+    })
 }
 
+function onRemoveSalary(row: SalaryRecord) {
+  ElMessageBox.confirm('确定删除 ' + row.name + ' 的 ' + activeMonth.value + ' 工资记录吗？', '删除工资记录', { type: 'warning' })
+    .then(() => store.removeRecord(activeMonth.value, row.id))
+    .then(() => ElMessage.success('工资记录已删除'))
+    .catch((err: unknown) => {
+      if (err === 'cancel' || err === 'close') return
+      ElMessage.error(err instanceof Error ? err.message : '删除失败')
+    })
+}
+
+const perfDialogVisible = ref(false)
+const perfOrigin = ref<PerfRecord | null>(null)
+const perfEditing = reactive<Record<string, any>>({})
+const PERF_FIELDS: { key: keyof PerfRecord; label: string }[] = [
+  { key: 'seq', label: '序号' }, { key: 'department', label: '部门' },
+  { key: 'name', label: '姓名' }, { key: 'monthScore', label: '月度总成绩' },
+  { key: 'perfLevel', label: '绩效级别' }, { key: 'incentiveCoef', label: '激励系数' },
+  { key: 'sepPerf', label: '当月绩效' }, { key: 'augBase', label: '上月基数' },
+  { key: 'incentivePart', label: '激励部分' }, { key: 'balanceCoef', label: '平衡系数' },
+  { key: 'coopCoef', label: '配合度系数' }, { key: 'finalIncentive', label: '最终激励额度' },
+  { key: 'totalPerf', label: '月度绩效总数' }
+]
+
+function blankPerf(): Record<string, any> {
+  return { id: '', month: activeMonth.value, seq: (current.value?.perf.length || 0) + 1, department: '', name: '',
+    monthScore: '', perfLevel: '', incentiveCoef: '', sepPerf: '0', augBase: '0',
+    incentivePart: '0', balanceCoef: '', coopCoef: '', finalIncentive: '0', totalPerf: '0' }
+}
+
+function openPerfAdd() {
+  perfOrigin.value = null
+  Object.assign(perfEditing, blankPerf())
+  perfDialogVisible.value = true
+}
+
+function openPerfEdit(row: PerfRecord) {
+  perfOrigin.value = row
+  Object.assign(perfEditing, JSON.parse(JSON.stringify(row)))
+  perfDialogVisible.value = true
+}
+
+function savePerf() {
+  if (!activeMonth.value || !String(perfEditing.name || '').trim()) {
+    ElMessage.warning('请填写绩效记录姓名')
+    return
+  }
+  const isEdit = Boolean(perfOrigin.value)
+  const next = { ...(perfOrigin.value || {}), ...perfEditing, name: String(perfEditing.name).trim() } as PerfRecord
+  const request = isEdit
+    ? store.updatePerf(activeMonth.value, next)
+    : store.addPerf(activeMonth.value, next)
+  request.then(() => {
+    perfDialogVisible.value = false
+    ElMessage.success(isEdit ? '绩效记录已保存' : '绩效记录已新增')
+  }).catch((err: unknown) => ElMessage.error(err instanceof Error ? err.message : '保存失败'))
+}
+
+function onRemovePerf(row: PerfRecord) {
+  ElMessageBox.confirm('确定删除 ' + row.name + ' 的绩效记录吗？', '删除绩效记录', { type: 'warning' })
+    .then(() => store.removePerf(activeMonth.value, row.id))
+    .then(() => ElMessage.success('绩效记录已删除'))
+    .catch((err: unknown) => {
+      if (err === 'cancel' || err === 'close') return
+      ElMessage.error(err instanceof Error ? err.message : '删除失败')
+    })
+}
 function onResetFormula(key: 'dueTotal' | 'netTotal') {
   editing[key] = key === 'dueTotal' ? DUE_FORMULA : NET_FORMULA
 }
@@ -194,16 +295,22 @@ function applyGradeStandard() {
         applied++
         return copy
       })
-      store.importMonth({ ...d, records })
-      ElMessage.success(`已对 ${applied} 人写入薪档标准公式，改标准即自动重算`)
+      return store.importMonth({ ...d, records }).then(() => {
+        ElMessage.success(`已对 ${applied} 人写入薪档标准公式，改标准即自动重算`)
+      })
     })
-    .catch(() => {})
+    .catch((err: unknown) => {
+      if (err instanceof Error) ElMessage.error(err.message)
+    })
 }
 
 /* ---------- 薪档标准表保存 ---------- */
 function saveStandard() {
   persistStandards()
-  ElMessage.success('薪档标准表已保存')
+    .then(() => ElMessage.success('薪档标准表已保存'))
+    .catch((err: unknown) => {
+      ElMessage.error(err instanceof Error ? err.message : '保存失败')
+    })
 }
 function onAddGrade() {
   const g = (window.prompt('新增薪档名称（如 P10）：') || '').trim()
@@ -246,6 +353,8 @@ function onRemoveGrade(g: string) {
     <el-card shadow="never">
       <div class="toolbar">
         <el-button type="primary" @click="fileInput?.click()">上传工资表</el-button>
+        <el-button v-if="activeMonth && activeTab === '绩效表'" type="success" plain @click="openPerfAdd">新增绩效记录</el-button>
+        <el-button v-else-if="activeMonth && activeTab !== '薪档标准'" type="success" plain @click="openAdd">新增工资记录</el-button>
         <el-select
           v-if="store.monthList.length"
           v-model="activeMonth"
@@ -268,6 +377,7 @@ function onRemoveGrade(g: string) {
         </el-tabs>
 
         <!-- 绩效表 -->
+        <div v-if="activeTab === '绩效表'" class="toolbar"><span class="imported-at">绩效记录支持单条新增、编辑和删除</span></div>
         <el-table v-if="activeTab === '绩效表'" :data="current.perf" border stripe size="small" max-height="560">
           <el-table-column prop="seq" label="序号" width="60" />
           <el-table-column prop="department" label="部门" width="110" />
@@ -288,6 +398,12 @@ function onRemoveGrade(g: string) {
           </el-table-column>
           <el-table-column label="月度绩效总数" width="110">
             <template #default="{ row }">{{ money(salaryVal(row as any, 'totalPerf' as any)) }}</template>
+          </el-table-column>
+          <el-table-column label="操作" width="120" fixed="right">
+            <template #default="{ row }">
+              <el-button link type="warning" size="small" @click="openPerfEdit(row as PerfRecord)">编辑</el-button>
+              <el-button link type="danger" size="small" @click="onRemovePerf(row as PerfRecord)">删除</el-button>
+            </template>
           </el-table-column>
         </el-table>
 
@@ -370,9 +486,10 @@ function onRemoveGrade(g: string) {
               <el-tag v-else type="success" size="small">一致</el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="80" fixed="right">
+          <el-table-column label="操作" width="120" fixed="right">
             <template #default="{ row }">
               <el-button link type="warning" size="small" @click="openEdit(row as SalaryRecord)">编辑</el-button>
+              <el-button link type="danger" size="small" @click="onRemoveSalary(row as SalaryRecord)">删除</el-button>
             </template>
           </el-table-column>
         </el-table>
@@ -380,7 +497,7 @@ function onRemoveGrade(g: string) {
     </el-card>
 
     <!-- 编辑：支持 =公式 -->
-    <el-dialog v-model="editVisible" :title="`编辑工资 - ${editing.name || ''}`" width="820px" destroy-on-close top="6vh">
+    <el-dialog v-model="editVisible" :title="`${dialogMode === 'add' ? '新增工资' : '编辑工资'} - ${editing.name || ''}`" width="820px" destroy-on-close top="6vh">
       <div class="live-panel">
         <div class="live-item">
           <span class="live-label">应领（公式计算）</span>
@@ -401,6 +518,21 @@ function onRemoveGrade(g: string) {
           </el-tag>
         </div>
       </div>
+
+      <el-alert v-if="dialogMode === 'add'" type="info" :closable="false" show-icon
+        title="填写姓名与部门后保存，即新增一条该月工资记录（记录 id 自动为 月份-姓名）" style="margin-bottom: 10px" />
+      <el-row v-if="dialogMode === 'add'" :gutter="12" style="margin-bottom: 4px">
+        <el-col :span="8">
+          <el-form-item label="姓名">
+            <el-input v-model="editing.name" placeholder="员工姓名" />
+          </el-form-item>
+        </el-col>
+        <el-col :span="8">
+          <el-form-item label="部门">
+            <el-input v-model="editing.department" placeholder="所在部门" />
+          </el-form-item>
+        </el-col>
+      </el-row>
 
       <el-form label-width="120px" size="small" class="edit-form">
         <el-alert
@@ -447,6 +579,22 @@ function onRemoveGrade(g: string) {
       <template #footer>
         <el-button @click="editVisible = false">取消</el-button>
         <el-button type="primary" @click="onSave">保存并重算</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="perfDialogVisible" :title="perfOrigin ? '编辑绩效记录' : '新增绩效记录'" width="720px" destroy-on-close>
+      <el-form label-width="120px" size="small">
+        <el-row :gutter="12">
+          <el-col v-for="f in PERF_FIELDS" :key="String(f.key)" :span="12">
+            <el-form-item :label="f.label">
+              <el-input v-model="perfEditing[f.key as string]" :disabled="f.key === 'seq' && !perfOrigin" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+      </el-form>
+      <template #footer>
+        <el-button @click="perfDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="savePerf">保存</el-button>
       </template>
     </el-dialog>
   </div>

@@ -1,16 +1,40 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { TableColumnCtx } from 'element-plus'
-import { partyFees } from '@/mock/data'
+import { listPartyFees } from '@/api/partyFee'
 import type { PartyFeeRecord } from '@/mock/types'
 
-const QUARTERS = ['2026-Q3']
-const quarter = ref('2026-Q3')
+const quarter = ref('')
+const list = ref<PartyFeeRecord[]>([])
+const loading = ref(false)
+const loadError = ref('')
 
-const list = ref<PartyFeeRecord[]>(partyFees.map((f) => ({ ...f })))
+/** 季度选项从真实数据派生，不再前端写死。 */
+const quarters = computed(() => [...new Set(list.value.map((f) => f.quarter))])
 
-const filtered = computed(() => list.value.filter((f) => f.quarter === quarter.value))
+const filtered = computed(() =>
+  quarter.value ? list.value.filter((f) => f.quarter === quarter.value) : []
+)
+
+async function load() {
+  loading.value = true
+  loadError.value = ''
+  try {
+    list.value = await listPartyFees()
+    if (!quarter.value && quarters.value.length) {
+      quarter.value = quarters.value[0]
+    }
+  } catch (e) {
+    // 党费为敏感数据，非全公司数据范围角色会被后端拒绝：给出明确提示而非空白
+    list.value = []
+    quarter.value = ''
+    loadError.value = e instanceof Error ? e.message : '党费数据加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+onMounted(load)
 
 const summary = computed(() => {
   const rows = filtered.value
@@ -54,16 +78,21 @@ function onExport() {
 </script>
 
 <template>
-  <el-card shadow="never">
+  <el-card shadow="never" v-loading="loading">
     <div class="toolbar">
-      <el-select v-model="quarter" style="width: 140px">
-        <el-option v-for="q in QUARTERS" :key="q" :label="q + ' 党费明细'" :value="q" />
+      <el-select v-model="quarter" style="width: 140px" placeholder="选择季度">
+        <el-option v-for="q in quarters" :key="q" :label="q + ' 党费明细'" :value="q" />
       </el-select>
       <el-button @click="onExport">导出季度明细</el-button>
       <span class="tip">党费按季度缴纳，绩效党费封顶规则：绩效工资超过 1000 元按 1000 元计算。</span>
     </div>
 
-    <el-table :data="filtered" border stripe size="small" show-summary :summary-method="getSummaries">
+    <div v-if="loadError" class="glass-empty">
+      <div class="glass-empty-title">暂无查看权限</div>
+      <div class="glass-empty-desc">{{ loadError }}</div>
+    </div>
+
+    <el-table v-else :data="filtered" border stripe size="small" show-summary :summary-method="getSummaries">
       <el-table-column prop="name" label="姓名" width="100" />
       <el-table-column prop="base1" label="7 月缴费基数" width="120">
         <template #default="{ row }">{{ money(row.base1) }}</template>

@@ -22,7 +22,9 @@ const router = createRouter({
         { path: 'party/members', name: 'party-members', component: () => import('@/views/party/PartyMembers.vue'), meta: { title: '党员名册' } },
         { path: 'union/condolence', name: 'union-condolence', component: () => import('@/views/union/CondolenceList.vue'), meta: { title: '慰问金审批' } },
         { path: 'union/welfare', name: 'union-welfare', component: () => import('@/views/union/WelfareSign.vue'), meta: { title: '节日福利签收' } },
-        { path: 'kb/regulations', name: 'kb-regulations', component: () => import('@/views/kb/Regulations.vue'), meta: { title: '制度文件库' } }
+        { path: 'kb/assistant', name: 'kb-assistant', component: () => import('@/views/kb/Assistant.vue'), meta: { title: '企业知识库' } },
+        { path: 'ai/writing', name: 'ai-writing', component: () => import('@/views/ai/WritingStudio.vue'), meta: { title: 'AI 智能体' } },
+        { path: 'system/members', name: 'system-members', component: () => import('@/views/system/MemberManage.vue'), meta: { title: '成员管理' } }
       ]
     }
   ]

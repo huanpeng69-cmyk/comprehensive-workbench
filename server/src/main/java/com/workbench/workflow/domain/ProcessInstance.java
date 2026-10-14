@@ -57,4 +57,7 @@ public class ProcessInstance {
   private java.time.LocalDateTime createdAt;
 
   private java.time.LocalDateTime finishedAt;
+  /** 所属公司（org_unit.id, type=COMPANY）：审批人解析按实例所属公司过滤（ADR-M005） */
+  @Column(name = "company_id", nullable = false)
+  private Long companyId;
 }
