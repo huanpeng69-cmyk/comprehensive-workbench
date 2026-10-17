@@ -5,6 +5,8 @@ import { useSalaryStore } from '@/stores/salary'
 import { useRosterStore } from '@/stores/roster'
 import type { SalaryRecord, SalaryMonthData, GradeStandard, PerfRecord } from '@/mock/types'
 import { SALARY_FIELD_LABELS, DUE_FORMULA, NET_FORMULA, BASE_FORMULA_BY_FIELD, GRADE_STD_FIELD_LABELS } from '@/mock/salaryOptions'
+import { resolveHandling } from '@/utils/salaryBasePay'
+import { leaveDaysByKind } from '@/stores/leave'
 import { parseSalaryXlsx } from '@/utils/salaryExcel'
 import { salaryVal, isFormula, money, insuranceTotal } from '@/utils/salary'
 import { gradeStandards, ensureSeed, persistStandards, getStandard, addStandard, removeStandard, gradeList } from '@/utils/salaryGradeStandard'
@@ -53,6 +55,53 @@ watch(
   },
   { immediate: true }
 )
+
+/* ---------- 手工新建月份（无数据时也能起步，不必依赖 Excel 导入） ---------- */
+/**
+ * 「新建记录时可用的月份」。
+ *
+ * <p>没有任何月份数据时，允许用户手工指定一个月（如 2026-09）直接新增记录；
+ * 后端 {@code createRecord} 会在该月份不存在时自动创建月表，因此无需先建月份。
+ * 一旦已有月份数据，就只用已有月份，避免手误建出多余的空月份。
+ */
+const pendingMonth = ref<string>('')
+
+/** 当前实际生效的月份：已有月份优先，其次手工指定的待建月份 */
+const effectiveMonth = computed(() => activeMonth.value || pendingMonth.value)
+
+/** 是否处于「有月份数据」的正常态 */
+const hasMonths = computed(() => store.monthList.length > 0)
+
+/** 空状态下是否已具备新增条件（选好待建月份） */
+const canAddInEmpty = computed(() => !hasMonths.value && !!pendingMonth.value)
+
+function defaultMonth(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+}
+
+/** 空状态下的「新增工资记录」入口：未选月份时先按当月填充 */
+function onAddInEmpty() {
+  if (!pendingMonth.value) pendingMonth.value = defaultMonth()
+  openAdd()
+}
+
+/** 月份选择器变化：已有月份时写 activeMonth，否则写待建月份 */
+function onMonthPicked(v: string) {
+  if (hasMonths.value) activeMonth.value = v
+  else pendingMonth.value = v
+}
+
+/** 供模板使用的月份下拉选项 */
+const monthOptions = computed(() =>
+  hasMonths.value ? store.monthList : pendingMonth.value ? [pendingMonth.value] : []
+)
+
+/** 当前选中的月份值（用于 el-select 双向绑定） */
+const pickedMonth = computed({
+  get: () => (hasMonths.value ? activeMonth.value : pendingMonth.value),
+  set: (v: string) => onMonthPicked(v)
+})
 
 /* ---------- 上传 ---------- */
 const fileInput = ref<HTMLInputElement | null>(null)
@@ -136,7 +185,7 @@ function blankSalary(): Record<string, any> {
     postDays: '0', postSalary: '0', titleAllowance: '0', otDays: '0', overtime: '0',
     bonus: '0', makeUp: '0', seniority: '0', siteAllowance: '0', dueTotal: '',
     pension: '0', unemployment: '0', medical: '0', housingFund: '0', annuity: '0',
-    largeMedical: '0', otherDeduct: '0', childEdu: '0', continuingEdu: '0',
+    largeMedical: '0', otherDeduct: '0', leaveDeduct: '0', childEdu: '0', continuingEdu: '0',
     housingLoan: '0', housingRent: '0', elderlyCare: '0', infantCare: '0',
     tax: '0', taxAdjust: '0', deduct: '0', netTotal: '', monthPerf: '0', unionFee: '0',
     sign: '', importedDue: undefined, importedNet: undefined
@@ -146,6 +195,8 @@ function blankSalary(): Record<string, any> {
 function openAdd() {
   dialogMode.value = 'add'
   Object.assign(editing, blankSalary())
+  // 空状态下手工新建时，把待建月份写进记录，保存后自动成为该月的第一条数据
+  editing.month = effectiveMonth.value
   editingOrigin.value = null
   editVisible.value = true
 }
@@ -157,7 +208,7 @@ const GROUPS: { title: string; fields: (keyof SalaryRecord)[] }[] = [
   },
   { title: '专项扣除（五险一金）', fields: ['pension', 'unemployment', 'medical', 'housingFund', 'annuity', 'largeMedical'] },
   { title: '个税与其他', fields: ['tax', 'taxAdjust', 'deduct', 'netTotal'] },
-  { title: '其他扣除与专项附加', fields: ['otherDeduct', 'childEdu', 'continuingEdu', 'housingLoan', 'housingRent', 'elderlyCare', 'infantCare'] },
+  { title: '其他扣除与专项附加', fields: ['otherDeduct', 'leaveDeduct', 'childEdu', 'continuingEdu', 'housingLoan', 'housingRent', 'elderlyCare', 'infantCare'] },
   { title: '附列', fields: ['monthPerf', 'unionFee'] }
 ]
 
@@ -173,14 +224,53 @@ const liveDue = computed(() => salaryVal(editing as unknown as SalaryRecord, 'du
 const liveNet = computed(() => salaryVal(editing as unknown as SalaryRecord, 'netTotal'))
 const liveInsurance = computed(() => insuranceTotal(editing as unknown as SalaryRecord))
 const liveDeductAll = computed(
-  () => liveInsurance.value + salaryVal(editing as unknown as SalaryRecord, 'tax') + salaryVal(editing as unknown as SalaryRecord, 'taxAdjust') + salaryVal(editing as unknown as SalaryRecord, 'deduct') + salaryVal(editing as unknown as SalaryRecord, 'otherDeduct')
+  () =>
+    liveInsurance.value +
+    salaryVal(editing as unknown as SalaryRecord, 'tax') +
+    salaryVal(editing as unknown as SalaryRecord, 'taxAdjust') +
+    salaryVal(editing as unknown as SalaryRecord, 'deduct') +
+    salaryVal(editing as unknown as SalaryRecord, 'otherDeduct') +
+    // 其他假别扣款（病假等人工填写项）：已在岗位工资中扣除，此处仅用于「扣款合计」展示与核对
+    salaryVal(editing as unknown as SalaryRecord, 'leaveDeduct')
 )
 
+/**
+ * 当前编辑人员本期「不对应固定扣款规则、需人工填写」的假别提示。
+ * 年假（全额发放）与事假（自动全额扣）不进这里，避免用户误以为还要额外填。
+ */
+const manualLeaveHint = computed(() => {
+  const name = String(editing.name ?? '').trim()
+  const month = String(editing.month || activeMonth.value || '').trim()
+  if (!name || !month) return ''
+  const parts: string[] = []
+  for (const d of leaveDaysByKind(name, month)) {
+    if (resolveHandling(d.kind) === 'MANUAL') {
+      parts.push(`${d.kind} ${d.days} 天`)
+    }
+  }
+  return parts.join('、')
+})
+
 function onSave() {
-  if (!activeMonth.value) return
+  const month = effectiveMonth.value
+  if (!month) {
+    ElMessage.warning('请先选择或填写工资月份')
+    return
+  }
   if (dialogMode.value === 'add') {
-    store.addRecord(activeMonth.value, editing as unknown as SalaryRecord)
-      .then(() => { editVisible.value = false; ElMessage.success('已新增工资记录') })
+    if (!String(editing.name ?? '').trim()) {
+      ElMessage.warning('请填写姓名')
+      return
+    }
+    store.addRecord(month, editing as unknown as SalaryRecord)
+      .then(async () => {
+        editVisible.value = false
+        ElMessage.success('已新增工资记录')
+        // 空状态手工新增后，该月份才在库里出现：重新拉取并切到该月
+        pendingMonth.value = ''
+        await store.load().catch(() => {})
+        if (store.monthList.includes(month)) activeMonth.value = month
+      })
       .catch((err: unknown) => { ElMessage.error(err instanceof Error ? err.message : '新增失败') })
     return
   }
@@ -280,7 +370,7 @@ function applyGradeStandard() {
   const d = store.months[activeMonth.value]
   if (!d) return
   ElMessageBox.confirm(
-    '将对「有薪档标准」的人员，把 岗位工日/岗位工资/职务津贴/年功/施工津贴 改写为引用薪档标准与请假的公式：岗位工日 = 应出工日 − 请假扣减，岗位工资 = 日工资标准 × 岗位工日。改标准或批请假都实时联动。无薪档标准的人员保持不变。',
+    '将对「有薪档标准」的人员，把 岗位工日/岗位工资/职务津贴/年功/施工津贴 改写为引用薪档标准与请假的公式：岗位工日 = 应出工日 − 事假天数；岗位工资 = 日工资标准 × 应出工日 − 事假扣款 − 其他假别扣款。年假全额发放不扣；病假等无固定规则的假别取「其他假别扣款」列的人工填写值。无薪档标准的人员保持不变。',
     '按薪档标准重算',
     { type: 'info', confirmButtonText: '重算', cancelButtonText: '取消' }
   )
@@ -355,13 +445,26 @@ function onRemoveGrade(g: string) {
         <el-button type="primary" @click="fileInput?.click()">上传工资表</el-button>
         <el-button v-if="activeMonth && activeTab === '绩效表'" type="success" plain @click="openPerfAdd">新增绩效记录</el-button>
         <el-button v-else-if="activeMonth && activeTab !== '薪档标准'" type="success" plain @click="openAdd">新增工资记录</el-button>
+        <!-- 空状态：没有月份数据时也允许手工新增，月份可用待建月份 -->
+        <el-button v-else-if="!hasMonths" type="success" plain @click="onAddInEmpty">新增工资记录</el-button>
+        <!-- 空状态且切到薪档标准时，仍可新增工资记录（不影响标准维护） -->
+        <el-button v-else-if="!activeMonth && hasMonths" type="success" plain disabled>新增工资记录</el-button>
+        <el-date-picker
+          v-if="!hasMonths"
+          v-model="pendingMonth"
+          type="month"
+          value-format="YYYY-MM"
+          placeholder="选择要新建的月份"
+          style="width: 160px"
+        />
         <el-select
-          v-if="store.monthList.length"
-          v-model="activeMonth"
+          v-else
+          :model-value="pickedMonth"
           placeholder="选择月份"
           style="width: 130px"
+          @update:model-value="onMonthPicked"
         >
-          <el-option v-for="m in store.monthList" :key="m" :label="m" :value="m" />
+          <el-option v-for="m in monthOptions" :key="m" :label="m" :value="m" />
         </el-select>
         <el-button v-if="activeMonth" type="danger" plain @click="onRemoveMonth">删除当月数据</el-button>
         <el-button v-if="activeMonth" type="warning" plain @click="applyGradeStandard">按薪档标准重算</el-button>
@@ -369,16 +472,32 @@ function onRemoveGrade(g: string) {
       </div>
       <input ref="fileInput" type="file" accept=".xls,.xlsx" style="display: none" @change="onFileChange" />
 
-      <el-empty v-if="!current" description="还没有工资数据，点击「上传工资表」导入当月 Excel" />
+      <!-- 空状态：给出两条起步路径，并可直达薪档标准维护 -->
+      <div v-if="!current && activeTab !== '薪档标准'" class="empty-guide">
+        <el-empty description="还没有工资数据" />
+        <div class="empty-actions">
+          <el-button type="primary" plain @click="fileInput?.click()">上传当月 Excel</el-button>
+          <el-button type="success" plain @click="onAddInEmpty">手工新增第一条工资记录</el-button>
+          <el-button plain @click="activeTab = '薪档标准'">维护薪档标准（日工资标准等）</el-button>
+        </div>
+        <p class="empty-tip">
+          提示：岗位工资依赖「薪档标准」里的<b>日工资标准</b>。首次使用建议先维护标准，再新增或导入工资数据。
+        </p>
+      </div>
 
-      <template v-else>
+      <template v-if="current || activeTab === '薪档标准'">
         <el-tabs v-model="activeTab" class="dept-tabs">
-          <el-tab-pane v-for="t in ['全部', ...departments, '绩效表', '薪档标准']" :key="t" :label="t" :name="t" />
+          <el-tab-pane
+            v-for="t in ['全部', ...departments, '绩效表', '薪档标准']"
+            :key="t"
+            :label="t"
+            :name="t"
+          />
         </el-tabs>
 
         <!-- 绩效表 -->
         <div v-if="activeTab === '绩效表'" class="toolbar"><span class="imported-at">绩效记录支持单条新增、编辑和删除</span></div>
-        <el-table v-if="activeTab === '绩效表'" :data="current.perf" border stripe size="small" max-height="560">
+        <el-table v-if="activeTab === '绩效表'" :data="current?.perf || []" border stripe size="small" max-height="560">
           <el-table-column prop="seq" label="序号" width="60" />
           <el-table-column prop="department" label="部门" width="110" />
           <el-table-column prop="name" label="姓名" width="100" />
@@ -574,6 +693,13 @@ function onRemoveGrade(g: string) {
             <el-button link type="primary" size="small" @click="onResetFormula('dueTotal')">恢复应领默认公式</el-button>
             <el-button link type="primary" size="small" @click="onResetFormula('netTotal')">恢复实领默认公式</el-button>
           </div>
+          <div v-if="g.title === '其他扣除与专项附加'" class="formula-tip">
+            「其他假别扣款」用于病假等<b>不对应固定扣款规则</b>的假别：系统不自动计算，
+            由你按制度填写扣款金额（年假全额发放、事假按日工资自动全额扣除，均无需在此填写）。
+            <template v-if="manualLeaveHint">
+              <br /><span class="manual-hint">本期该员工需人工填写的假别：{{ manualLeaveHint }}</span>
+            </template>
+          </div>
         </template>
       </el-form>
       <template #footer>
@@ -675,6 +801,32 @@ function onRemoveGrade(g: string) {
 .formula-tip {
   margin: -6px 0 10px;
   font-size: 12px;
+  color: var(--text-tertiary);
+}
+.manual-hint {
+  color: var(--el-color-warning);
+  font-weight: 600;
+}
+
+.empty-guide {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 0 24px;
+}
+.empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+.empty-tip {
+  margin: 14px 0 0;
+  max-width: 620px;
+  text-align: center;
+  font-size: 12px;
+  line-height: 1.7;
   color: var(--text-tertiary);
 }
 </style>

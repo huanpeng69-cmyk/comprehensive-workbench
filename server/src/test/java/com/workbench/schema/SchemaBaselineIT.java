@@ -56,7 +56,7 @@ class SchemaBaselineIT {
   static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:16-alpine");
 
   /** 现有迁移：V1～V16 全部成功，一条都不能漏。 */
-  private static final int EXPECTED_MIGRATIONS = 16;
+  private static final int EXPECTED_MIGRATIONS = 17;
   /** 阶段 2 加 {@code company_id} 且收紧为 NOT NULL 的 11 张表（ADR-M002 软隔离口径）。 */
   private static final List<String> COMPANY_SCOPED_TABLES = List.of(
       "org_unit", "sys_user", "employee", "leave_record", "condolence", "process_instance",
@@ -182,7 +182,7 @@ class SchemaBaselineIT {
         }
       }
     }
-    assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16"), versions);
+    assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17"), versions);
     assertEquals(EXPECTED_MIGRATIONS, versions.size());
   }
 

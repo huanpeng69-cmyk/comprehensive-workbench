@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { reactive } from 'vue'
 import type { LeaveRecord } from '@/mock/types'
+import type { LeaveDay } from '@/utils/salaryBasePay'
 import {
   listLeaves,
   createLeave,
@@ -68,6 +69,28 @@ export function leaveDaysFor(name: string, month: string): number {
     total += overlapDays(r.start, r.end, month)
   }
   return total
+}
+
+/**
+ * 当月已批准请假，按「假别」归集天数（不预先筛假别）。
+ *
+ * <p>与 {@link leaveDaysFor} 的过滤条件完全一致（姓名、已批准、月份重叠），
+ * 区别只在于<b>不把不同假别压成一个总数</b>：年假/病假/事假的扣减口径不同
+ * （见 utils/salaryBasePay.ts），压成总数后无法区分。
+ *
+ * <p>同一假别出现多条请假记录时原样返回多条，由计算侧合并。
+ */
+export function leaveDaysByKind(name: string, month: string): LeaveDay[] {
+  if (!name || !month) return []
+  const out: LeaveDay[] = []
+  for (const r of leaveList) {
+    if (r.applicant !== name) continue
+    if (r.status !== '已批准') continue
+    if (month < r.start.slice(0, 7) || month > r.end.slice(0, 7)) continue
+    const days = overlapDays(r.start, r.end, month)
+    if (days > 0) out.push({ kind: r.type, days })
+  }
+  return out
 }
 
 export const useLeaveStore = defineStore('leave', () => {

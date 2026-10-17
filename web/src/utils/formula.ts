@@ -1,12 +1,22 @@
 /**
  * 极简 Excel 风格公式引擎（用于工资表单元格公式）：
  * - [字段名] 引用（由调用方 resolve 提供取值，可递归解析依赖链）
- * - 四则运算 + - * / 、括号、数字字面量
- * - SUM(a, b, ...) 求和函数
+ * - 四则运算 + - * / 、括号、数字字面量、一元正负
+ * - SUM(a, b, ...) 求和；ROUND(x, n) 四舍五入到 n 位小数（Excel 同名函数语义）
  * 非法表达式返回 NaN，不抛异常。
  */
 const MAX_DEPTH = 20
 
+/** Excel 的 ROUND 是「四舍五入」而非银行家舍入，这里对齐 Excel 行为。 */
+function excelRound(v: number, digits: number): number {
+  if (!Number.isFinite(v)) return NaN
+  const d = Number.isFinite(digits) ? Math.trunc(digits) : 0
+  const f = Math.pow(10, d)
+  const scaled = v * f
+  const rounded =
+    scaled >= 0 ? Math.floor(scaled + 0.5) : Math.ceil(scaled - 0.5)
+  return rounded / f
+}
 export function evalFormula(input: string, resolve: (label: string) => number, depth = 0): number {
   if (depth > MAX_DEPTH) return NaN
   const s = input
@@ -86,6 +96,19 @@ export function evalFormula(input: string, resolve: (label: string) => number, d
         break
       }
       return args.reduce((a, b) => a + (Number.isFinite(b) ? b : 0), 0)
+    }
+    if (s.slice(pos, pos + 6).toUpperCase() === 'ROUND(') {
+      pos += 6
+      const value = parseExpr()
+      ws()
+      let digits = 0
+      if (s[pos] === ',') {
+        pos++
+        digits = parseExpr()
+        ws()
+      }
+      if (s[pos] === ')') pos++
+      return excelRound(value, digits)
     }
     if (c === '[') {
       const end = s.indexOf(']', pos)

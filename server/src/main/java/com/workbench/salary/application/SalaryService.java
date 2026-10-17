@@ -84,6 +84,7 @@ public class SalaryService {
   /** 整月覆盖式保存（Excel 导入）：覆盖范围限本单位，绝不触碰其他单位的同月数据。 */
   @Transactional
   public MonthVo upsertMonth(String month, MonthUpsertRequest request) {
+    assertCompanyScope("保存工资月度数据");
     Long companyId = writeOwnershipResolver.requireCompanyId(null, "SALARY", "保存工资月度数据");
     SalaryMonth header = monthRepository.findByCompanyIdAndMonth(companyId, month).orElse(null);
     if (header == null) {
@@ -123,6 +124,7 @@ public class SalaryService {
 
   @Transactional
   public void deleteMonth(String month) {
+    assertCompanyScope("删除工资月度数据");
     Long companyId = writeOwnershipResolver.requireCompanyId(null, "SALARY", "删除工资月度数据");
     recordRepository.deleteAll(
         recordRepository.findByCompanyIdAndMonthOrderBySeqAscIdAsc(companyId, month));
@@ -134,6 +136,7 @@ public class SalaryService {
 
   @Transactional
   public SalaryRecord updateRecord(String month, String recordId, SalaryRecord incoming) {
+    assertCompanyScope("修改工资明细");
     Long companyId = writeOwnershipResolver.requireCompanyId(null, "SALARY", "修改工资明细");
     SalaryRecord existing =
         recordRepository.findByCompanyIdAndMonthAndId(companyId, month, recordId)
@@ -150,6 +153,7 @@ public class SalaryService {
   /** 新增单条工资明细（对齐花名册「新增人员」）。id 约定为 `${month}-${name}`，同单位同月同名已存在则拒绝。 */
   @Transactional
   public SalaryRecord createRecord(String month, SalaryRecord incoming) {
+    assertCompanyScope("新增工资明细");
     Long companyId = writeOwnershipResolver.requireCompanyId(null, "SALARY", "新增工资明细");
     if (incoming.getName() == null || incoming.getName().isBlank()) {
       throw new IllegalArgumentException("姓名不能为空");
@@ -177,6 +181,7 @@ public class SalaryService {
   /** 删除单条工资明细（对齐花名册「删除此行」）。 */
   @Transactional
   public void deleteRecord(String month, String recordId) {
+    assertCompanyScope("删除工资明细");
     Long companyId = writeOwnershipResolver.requireCompanyId(null, "SALARY", "删除工资明细");
     SalaryRecord existing =
         recordRepository.findByCompanyIdAndMonthAndId(companyId, month, recordId)
@@ -188,6 +193,7 @@ public class SalaryService {
 
   @Transactional
   public PerfRecord updatePerf(String month, String recordId, PerfRecord incoming) {
+    assertCompanyScope("修改绩效记录");
     Long companyId = writeOwnershipResolver.requireCompanyId(null, "SALARY", "修改绩效记录");
     PerfRecord existing = perfRepository.findByCompanyIdAndMonthAndId(companyId, month, recordId)
         .orElseThrow(() -> new IllegalArgumentException("绩效记录不存在：" + recordId));
@@ -203,6 +209,7 @@ public class SalaryService {
   /** 新增单条绩效明细；同单位同月同名仅允许保留一条记录。 */
   @Transactional
   public PerfRecord createPerf(String month, PerfRecord incoming) {
+    assertCompanyScope("新增绩效记录");
     Long companyId = writeOwnershipResolver.requireCompanyId(null, "SALARY", "新增绩效记录");
     if (incoming.getName() == null || incoming.getName().isBlank()) {
       throw new IllegalArgumentException("姓名不能为空");
@@ -230,6 +237,7 @@ public class SalaryService {
   /** 删除单条绩效记录。 */
   @Transactional
   public void deletePerf(String month, String recordId) {
+    assertCompanyScope("删除绩效记录");
     Long companyId = writeOwnershipResolver.requireCompanyId(null, "SALARY", "删除绩效记录");
     PerfRecord existing = perfRepository.findByCompanyIdAndMonthAndId(companyId, month, recordId)
         .orElseThrow(() -> new IllegalArgumentException("绩效记录不存在：" + recordId));
@@ -314,6 +322,7 @@ public class SalaryService {
     t.setMonthPerf(s.getMonthPerf());
     t.setUnionFee(s.getUnionFee());
     t.setSign(s.getSign());
+    t.setLeaveDeduct(s.getLeaveDeduct());
     t.setImportedDue(s.getImportedDue());
     t.setImportedNet(s.getImportedNet());
   }

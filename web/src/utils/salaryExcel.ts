@@ -149,6 +149,8 @@ export async function parseSalaryXlsx(
           annuity: toNum(row[C.annuity]),
           largeMedical: toNum(row[C.largeMedical]),
           otherDeduct: 0,
+          // 其他假别扣款：Excel 无对应列，导入时留 0，由用户在工资页按需填写
+          leaveDeduct: 0,
           childEdu: toNum(row[C.childEdu]),
           continuingEdu: toNum(row[C.continuingEdu]),
           housingLoan: toNum(row[C.housingLoan]),

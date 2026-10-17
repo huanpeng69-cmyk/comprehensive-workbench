@@ -19,6 +19,7 @@ export const SALARY_FIELD_LABELS: Partial<Record<keyof SalaryRecord, string>> = 
   annuity: '企业年金',
   largeMedical: '大额医保金',
   otherDeduct: '其他扣除',
+  leaveDeduct: '其他假别扣款',
   childEdu: '子女教育',
   continuingEdu: '继续教育',
   housingLoan: '房贷利息',
@@ -68,11 +69,26 @@ export const GRADE_STD_LABEL_TO_KEY: Record<string, keyof GradeStandard> = Objec
     .filter(([k]) => k !== 'id' && k !== 'grade')
     .map(([k, v]) => [v as string, k as keyof GradeStandard])
 )
-/** 基数类字段（「按薪档标准重算」时改写为公式引用标准表 + 工日勾稽）
- * 工日勾稽：岗位工日 = 应出工日 - 请假扣减；岗位工资 = 日工资标准 × 岗位工日 */
+/**
+ * 基数类字段（「按薪档标准重算」时改写为公式引用标准表 + 工日勾稽）。
+ *
+ * <p>口径（业务确认）：
+ * <ul>
+ *   <li><b>年假</b>：全额发放 —— 不出现在扣减项里，即不扣。</li>
+ *   <li><b>事假</b>：全额扣除 —— 按日工资 × 事假天数扣。</li>
+ *   <li><b>病假及其他假别</b>：不对应固定扣款规则 —— 不参与自动计算，
+ *       由 `otherLeaveDeduct` 字段人工填写扣款金额（见工资页「其他假别扣款」输入项）。</li>
+ * </ul>
+ *
+ * <p>岗位工日 = 应出工日 − 事假天数（年假不扣；病假不自动折算天数）。
+ * 岗位工资 = 日工资标准 × 应出工日 − 事假扣款 − 其他假别扣款（人工填写）。
+ */
 export const BASE_FORMULA_BY_FIELD: Partial<Record<keyof SalaryRecord, string>> = {
-  postDays: '=[应出工日]-[请假.当月天数]',
-  postSalary: '=[薪档标准.日工资标准]*[岗位工日]',
+  // 年假不扣；事假全额扣工日；病假不自动折算（金额走 leaveDeduct 人工填写）
+  postDays: '=[应出工日]-[请假.事假]',
+  // 满勤岗位工资 − 事假扣款(日工资×事假天数) − 其他假别扣款(人工填写)
+  postSalary:
+    '=[薪档标准.日工资标准]*[应出工日]-[薪档标准.日工资标准]*[请假.事假]-[其他假别扣款]',
   titleAllowance: '=[薪档标准.职务津贴标准]',
   seniority: '=[薪档标准.年功基数]',
   siteAllowance: '=[薪档标准.施工津贴基数]'

@@ -282,6 +282,7 @@ export interface SalaryRecord {
   /* 附列 */
   monthPerf: NumLike // 月度绩效奖金（第30列）
   unionFee: NumLike // 会费（第31列）
+  leaveDeduct: NumLike // 其他假别扣款（病假等无固定规则，人工填写；空=未填）
   sign: string // 领款人签字
   /* 导入原值（用于编辑后差异核对） */
   importedDue?: number

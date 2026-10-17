@@ -7,11 +7,15 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.workbench.audit.application.AuditService;
+import com.workbench.salary.application.dto.MonthUpsertRequest;
+import com.workbench.salary.domain.PerfRecord;
+import com.workbench.salary.domain.SalaryRecord;
 import com.workbench.platform.datascope.DataScopeResolver;
 import com.workbench.platform.datascope.RoleBasedDataScopeResolver;
 import com.workbench.platform.org.OrgQueryPort;
@@ -104,6 +108,43 @@ class SalaryServiceDataScopeTest {
 
     assertThrows(IllegalStateException.class, () -> service.deleteMonth("2026-09"));
     verify(auditService).log(eq("pm"), eq("ACCESS_DENIED"), eq("SALARY"), eq("-"), anyString());
+    verifyNoInteractions(monthRepository, recordRepository, perfRepository, configRepository);
+  }
+
+  /**
+   * 真实生产形态的越权回归：PROJECT 数据范围用户「带着 companyId claim」写工资。
+   *
+   * <p>2026-10-17 修复前，8 个写接口只调 {@code requireCompanyId}（只解析归属单位、不判数据范围），
+   * 而所有账号的 JWT 都带 companyId，于是项目经理/普通员工可以整月覆盖或删除全公司工资；
+   * 上面的 {@code projectScopeIsDeniedOnWriteAndTouchesNoSalaryTable} 用 {@code runAs}
+   * 把 companyId 传成 null，恰好落进「两者都缺失」分支，掩盖了这个漏洞。
+   *
+   * <p>本用例显式用 {@code runAsInCompany(..., COMPANY_ID, ...)} 构造真实场景，
+   * 逐个覆盖 8 个写接口：必须全部被拒、写 ACCESS_DENIED 审计、且不碰任何工资表。
+   */
+  @Test
+  void projectScopeWithCompanyIdIsDeniedOnEveryWritePath() {
+    SecurityContextFixture.runAsInCompany("pm", COMPANY_ID, 7L, "PROJECT_MANAGER");
+    when(roleQueryPort.findByCodes(any()))
+        .thenReturn(List.of(role("PROJECT_MANAGER", "PROJECT", true)));
+    SalaryRecord rec = SalaryRecord.builder().name("张三").build();
+    PerfRecord perf = PerfRecord.builder().name("张三").build();
+
+    assertThrows(IllegalStateException.class,
+        () -> service.upsertMonth("2026-09", new MonthUpsertRequest(List.of(), List.of())),
+        "PROJECT 用户带 companyId 也不得整月覆盖工资");
+    assertThrows(IllegalStateException.class, () -> service.deleteMonth("2026-09"));
+    assertThrows(IllegalStateException.class, () -> service.updateRecord("2026-09", "x", rec));
+    assertThrows(IllegalStateException.class, () -> service.createRecord("2026-09", rec));
+    assertThrows(IllegalStateException.class, () -> service.deleteRecord("2026-09", "x"));
+    assertThrows(IllegalStateException.class, () -> service.updatePerf("2026-09", "x", perf));
+    assertThrows(IllegalStateException.class, () -> service.createPerf("2026-09", perf));
+    assertThrows(IllegalStateException.class, () -> service.deletePerf("2026-09", "x"));
+
+    // 8 个写接口各写一条 ACCESS_DENIED 审计
+    verify(auditService, times(8))
+        .log(eq("pm"), eq("ACCESS_DENIED"), eq("SALARY"), eq("-"), anyString());
+    // 拒绝发生在任何仓储访问之前：绝不碰工资表
     verifyNoInteractions(monthRepository, recordRepository, perfRepository, configRepository);
   }
 

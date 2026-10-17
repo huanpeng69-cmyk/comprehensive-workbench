@@ -72,6 +72,10 @@ public class SalaryRecord {
   private String monthPerf;
   private String unionFee;
 
+  /** 其他假别扣款（病假等无固定规则的假别，人工填写；空=未填）。 */
+  @Column(name = "leave_deduct")
+  private String leaveDeduct;
+
   @Column(length = 64)
   private String sign;
 
