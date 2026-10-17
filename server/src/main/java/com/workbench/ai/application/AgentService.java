@@ -5,6 +5,8 @@ import com.workbench.ai.application.tool.ToolRegistry;
 import com.workbench.ai.dto.AgentMessage;
 import com.workbench.ai.dto.AgentRequest;
 import com.workbench.audit.application.AuditService;
+import com.workbench.memory.application.MemoryService;
+import com.workbench.memory.dto.MemoryRecallResult;
 import com.workbench.security.CurrentUserHolder;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PreDestroy;
@@ -32,6 +34,8 @@ import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * 通用 Agent 编排。
@@ -57,8 +61,10 @@ public class AgentService {
   private static final String DEFAULT_SYSTEM_PROMPT =
       "你是一个通用的智能助手，善于理解用户意图，并在需要时调用可用的工具获取信息，"
           + "再给出准确、条理清晰、用中文表达的回答。不要编造不确定的事实；信息不足时坦诚说明。";
+  private static final Logger log = LoggerFactory.getLogger(AgentService.class);
 
   private final AiConfigService configService;
+  private final MemoryService memoryService;
   private final AuditService auditService;
   private final ToolRegistry toolRegistry;
   private final RestTemplate restTemplate;
@@ -73,15 +79,17 @@ public class AgentService {
 
   @Autowired
   public AgentService(
-      AiConfigService configService, AuditService auditService, ToolRegistry toolRegistry) {
-    this(configService, auditService, toolRegistry, createRestTemplate());
+      AiConfigService configService, AuditService auditService, ToolRegistry toolRegistry,
+      MemoryService memoryService) {
+    this(configService, auditService, toolRegistry, memoryService, createRestTemplate());
   }
 
   /** 包级构造器供测试注入打桩过的 RestTemplate。 */
   AgentService(
       AiConfigService configService, AuditService auditService,
-      ToolRegistry toolRegistry, RestTemplate restTemplate) {
+      ToolRegistry toolRegistry, MemoryService memoryService, RestTemplate restTemplate) {
     this.configService = configService;
+    this.memoryService = memoryService;
     this.auditService = auditService;
     this.toolRegistry = toolRegistry;
     this.restTemplate = restTemplate;
@@ -110,12 +118,16 @@ public class AgentService {
       throw new IllegalArgumentException("系统提示词不能超过 8000 个字符");
     }
 
+    // 记忆注入必须在主线程完成（与 username 同理）：SecurityContext 不随线程池传递。
+    // 检索失败只降级为「本轮不注入」，绝不打断对话。
+    String effectiveSystemPrompt = withMemoryBlock(systemPrompt, request);
+
     SseEmitter emitter = new SseEmitter(STREAM_TIMEOUT_MS);
     // 安全上下文不会自动传到线程池，在主线程先取出用户名再传给 Agent 线程。
     String username = CurrentUserHolder.currentUsername();
     try {
       executor.execute(
-          () -> runAgent(request, systemPrompt, baseUrl, model, apiKey, username, emitter));
+          () -> runAgent(request, effectiveSystemPrompt, baseUrl, model, apiKey, username, emitter));
     } catch (RejectedExecutionException busy) {
       try {
         emitter.send(SseEmitter.event().data(errorFrame("当前请求较多，请稍等几秒后重试")));
@@ -125,6 +137,55 @@ public class AgentService {
       }
     }
     return emitter;
+  }
+
+  /**
+   * 把当前用户的长期记忆块拼到系统提示词之后；无记忆时原样返回（包级可见，供同包测试直接断言）。
+   *
+   * <p>拼在 system 而不是追加一条 user 消息：记忆是「背景约束」而不是「用户这轮说的话」，
+   * 混进对话历史会让模型误以为用户刚提了这些内容，也会污染后续轮次的历史。</p>
+   */
+  String withMemoryBlock(String systemPrompt, AgentRequest request) {
+    String block = resolveMemoryBlock(request);
+    return block.isEmpty() ? systemPrompt : systemPrompt + "\n\n" + block;
+  }
+
+  /**
+   * 检索当前用户的记忆块。
+   *
+   * <p><b>失败只降级，绝不抛出</b>：记忆是增强项，查库/打分异常不能让整轮对话挂掉，
+   * 所以这里兜住所有异常并只留一条 warn 日志。</p>
+   */
+  private String resolveMemoryBlock(AgentRequest request) {
+    try {
+      MemoryRecallResult recalled = memoryService.recallForPrompt(lastUserMessage(request));
+      if (recalled == null || recalled.block() == null) {
+        return "";
+      }
+      return recalled.block().trim();
+    } catch (Exception ex) {
+      log.warn("用户记忆检索失败，本轮对话不做记忆注入：{}", ex.getMessage());
+      return "";
+    }
+  }
+
+  /**
+   * 最后一条 user 消息的正文，作为记忆检索的话题（包级可见，供同包测试直接断言）。
+   *
+   * <p>空串表示「没有明确话题」，检索侧会退化成按重要度 + 新鲜度排序，而不是报错。</p>
+   */
+  static String lastUserMessage(AgentRequest request) {
+    if (request == null || request.messages() == null) {
+      return "";
+    }
+    String last = "";
+    for (AgentMessage message : request.messages()) {
+      if (message != null && "user".equals(message.role())
+          && message.content() != null && !message.content().isBlank()) {
+        last = message.content();
+      }
+    }
+    return last;
   }
 
   private void runAgent(

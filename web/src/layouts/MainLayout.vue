@@ -65,7 +65,8 @@ const menus = computed<MenuItem[]>(() => {
       ]
     },
     { title: '企业知识库', index: '/kb/assistant', icon: 'Collection' },
-    { title: 'AI 智能体', index: '/ai/writing', icon: 'MagicStick' }
+    { title: 'AI 智能体', index: '/ai/writing', icon: 'MagicStick' },
+    { title: '我的记忆', index: '/ai/memory', icon: 'Notebook' }
   ]
   if (isAdmin.value) {
     items.push({

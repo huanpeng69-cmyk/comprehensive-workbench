@@ -29,7 +29,7 @@ class ModuleBoundaryTest {
   /** 全部模块根包。新增模块必须登记进这里，否则边界规则对它不生效。 */
   private static final List<String> ALL_MODULES = List.of(
       "ai", "audit", "attachment", "codegen", "common", "condolence", "hr", "identity", "kb", "kbproxy",
-      "leave", "notice", "party", "platform", "salary", "security", "workflow");
+      "leave", "memory", "notice", "party", "platform", "salary", "security", "workflow");
 
   /** 底层模块：不得依赖任何业务模块。 */
   private static final List<String> FOUNDATION_MODULES = List.of("audit", "common", "security");
