@@ -163,18 +163,6 @@ export interface Reception {
   details: { time: string; item: string; place: string; amount: number }[]
 }
 
-export interface WelfareItem {
-  id: number
-  category: string
-  name: string
-  spec: string
-  quantity: number
-  recipient: string
-  department: string
-  status: '已领取' | '未领取'
-  signedAt: string
-}
-
 // ---- 人员花名册（对齐「荔园项目2026年7月人员花名册统计表」23 字段）----
 export type Gender = '男' | '女'
 export type EmploymentTypeFull = '正式工' | '临时工' | '劳务派遣'

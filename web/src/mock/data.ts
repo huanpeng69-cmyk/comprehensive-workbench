@@ -1,6 +1,6 @@
 import type {
   Staff, PayrollBatch, Notice, SealUsage, PartyFeeRecord, Condolence, Todo, Regulation,
-  LeaveRecord, PartyMember, Reception, WelfareItem
+  LeaveRecord, PartyMember, Reception
 } from './types'
 
 export const PROJECTS = ['云岭项目部', '江湾项目部', '榕荫项目部', '南岸项目部', '荔园项目部']
@@ -130,15 +130,4 @@ export const receptions: Reception[] = [
     host: '刘志强', department: '合同管理部', status: '方案待审', amount: 0, voucherNo: '',
     details: []
   }
-]
-
-export const welfareItems: WelfareItem[] = [
-  { id: 1, category: '月饼（蛋黄酥）', name: '流心奶黄月饼', spec: '盒装 8 枚', quantity: 1, recipient: '陈国栋', department: '综合管理部', status: '已领取', signedAt: '2026-09-14 09:12' },
-  { id: 2, category: '月饼（蛋黄酥）', name: '流心奶黄月饼', spec: '盒装 8 枚', quantity: 1, recipient: '李明远', department: '综合管理部', status: '已领取', signedAt: '2026-09-14 10:03' },
-  { id: 3, category: '月饼（蛋黄酥）', name: '流心奶黄月饼', spec: '盒装 8 枚', quantity: 1, recipient: '王海涛', department: '质检部', status: '未领取', signedAt: '' },
-  { id: 4, category: '月饼（蛋黄酥）', name: '流心奶黄月饼', spec: '盒装 8 枚', quantity: 1, recipient: '赵启明', department: '施工部', status: '未领取', signedAt: '' },
-  { id: 5, category: '水果', name: '秋季时令水果礼盒', spec: '盒装 5 斤', quantity: 1, recipient: '陈国栋', department: '综合管理部', status: '已领取', signedAt: '2026-09-15 14:40' },
-  { id: 6, category: '水果', name: '秋季时令水果礼盒', spec: '盒装 5 斤', quantity: 1, recipient: '周晓琳', department: '综合管理部', status: '已领取', signedAt: '2026-09-15 15:20' },
-  { id: 7, category: '水果', name: '秋季时令水果礼盒', spec: '盒装 5 斤', quantity: 1, recipient: '方静', department: '财务管理部', status: '未领取', signedAt: '' },
-  { id: 8, category: '水果', name: '秋季时令水果礼盒', spec: '盒装 5 斤', quantity: 1, recipient: '高峰', department: '设备物资部', status: '已领取', signedAt: '2026-09-16 08:55' }
 ]

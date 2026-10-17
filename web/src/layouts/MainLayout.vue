@@ -61,7 +61,6 @@ const menus = computed<MenuItem[]>(() => {
       title: '工会管理', index: 'union', icon: 'Briefcase',
       children: [
         { title: '慰问金审批', index: '/union/condolence' },
-        { title: '节日福利签收', index: '/union/welfare' }
       ]
     },
     { title: '企业知识库', index: '/kb/assistant', icon: 'Collection' },

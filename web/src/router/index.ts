@@ -21,7 +21,6 @@ const router = createRouter({
         { path: 'party/fees', name: 'party-fees', component: () => import('@/views/party/PartyFees.vue'), meta: { title: '党费季度明细' } },
         { path: 'party/members', name: 'party-members', component: () => import('@/views/party/PartyMembers.vue'), meta: { title: '党员名册' } },
         { path: 'union/condolence', name: 'union-condolence', component: () => import('@/views/union/CondolenceList.vue'), meta: { title: '慰问金审批' } },
-        { path: 'union/welfare', name: 'union-welfare', component: () => import('@/views/union/WelfareSign.vue'), meta: { title: '节日福利签收' } },
         { path: 'kb/assistant', name: 'kb-assistant', component: () => import('@/views/kb/Assistant.vue'), meta: { title: '企业知识库' } },
         { path: 'ai/memory', name: 'ai-memory', component: () => import('@/views/ai/MemoryCenter.vue'), meta: { title: '我的记忆' } },
         { path: 'system/members', name: 'system-members', component: () => import('@/views/system/MemberManage.vue'), meta: { title: '成员管理' } }
