@@ -63,4 +63,4 @@
 
 ## 五、遗留
 - `projectUnionOpinion` 被 CANCELLED 任务占位 comment 覆盖的次要问题 **已于本批内修复**：`WorkflowService.instanceTaskComments` 改为仅返回 `APPROVED` 任务。修复后经端到端脚本复测确认两级意见均回填真实文本。
-- 后续批次（按记录顺序）：公章使用登记(`seal_usage`) → 公务接待(`reception`) → 福利签收(`welfare_item`) → 党员名册(`party_member`) → 通知公告完整 CRUD → Phase 3 权限模型。
+ - ⚠️ 注：原后续批次中的「福利签收(`welfare_item`)」**已于 2026-10-17 删除**（commit `2aab75b`），因其实为纯前端 mock、无后端/数据库且与真实业务不符，故不再纳入后端化计划。后续批次修正为：公章使用登记(`seal_usage`) → 公务接待(`reception`) → 党员名册(`party_member`) → 通知公告完整 CRUD → Phase 3 权限模型。

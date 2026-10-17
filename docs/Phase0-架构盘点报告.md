@@ -150,7 +150,7 @@ PostgreSQL 16（Docker，Flyway V1/V2 迁移）＋ Redis 7（登录限流）
 | 党费 | mock/data.ts | party_fee | /api/party-fees | party/PartyFees.vue | 待迁移（敏感） |
 | 党员名册 | mock/data.ts | party_member | /api/party-members | party/PartyMembers.vue | 待迁移 |
 | 慰问金 | mock/data.ts | condolence | /api/condolences | union/CondolenceList.vue | 待迁移（敏感） |
-| 福利签收 | mock/data.ts | welfare_item | /api/welfare | union/WelfareSign.vue | 待迁移 |
+ | 福利签收 | mock/data.ts | welfare_item | /api/welfare | union/WelfareSign.vue | ⚠️ **已删除**（2026-10-17，commit `2aab75b`）：原纯前端 mock，无后端/数据库，与真实「福利签收」业务不符，已从路由、侧边栏、mock 中移除。 |
 | 制度库 | 列表在前端 mock，正文已在后端 | regulation（元数据入表） | /api/kb/regulations | kb/Regulations.vue | **半迁移**：列表数据补入表 |
 | 用户/角色管理 | — | sys_user / sys_role（已有） | /api/users /api/roles | 新增管理页 | 待新建 |
 | 审计后台 | — | audit_log（已有，需扩字段） | /api/audit-logs | 新增安全审计中心 | 待新建 |
