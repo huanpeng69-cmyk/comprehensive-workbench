@@ -37,7 +37,8 @@ public class AiConfig {
   @Column(name = "model", length = 128)
   private String model;
 
-  @Column(name = "api_key", length = 512)
+  /** 密文 {@code ENC(<hex>)} 由 AiConfigCrypto 读写；历史明文兼容读、下次保存时加密回写。 */
+  @Column(name = "api_key", columnDefinition = "text")
   private String apiKey;
 
   @Column(name = "updated_by", length = 64)

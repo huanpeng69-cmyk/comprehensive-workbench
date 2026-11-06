@@ -5,6 +5,7 @@ import com.workbench.ai.dto.AiConfigTestRequest;
 import com.workbench.ai.dto.AiConfigView;
 import com.workbench.ai.repository.AiConfigRepository;
 import com.workbench.security.CurrentUserHolder;
+import com.workbench.security.Permissions;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
@@ -35,7 +36,8 @@ import org.springframework.web.client.RestTemplate;
  *       （{@code WORKBENCH_AI_BASE_URL / WORKBENCH_AI_MODEL / WORKBENCH_AI_API_KEY}），
  *       用于不给数据库写权限时的兜底。</li>
  * </ul>
- * 密钥只在服务端流转，{@link #view()} 对外一律脱敏。
+ * 密钥只在服务端流转，{@link #view()} 对外一律脱敏；数据库里存的是 ENC(...) 密文
+ * （{@link AiConfigCrypto}，历史明文兼容读、下次保存时自动加密回写）。
  */
 @Service
 public class AiConfigService {
@@ -44,8 +46,11 @@ public class AiConfigService {
   public static final String SOURCE_DB = "db";
   public static final String SOURCE_ENV = "env";
 
-  /** 允许修改模型配置的角色，与 AiConfigController 写接口的 @PreAuthorize 保持一致。 */
-  private static final List<String> CONFIG_EDITABLE_ROLES = List.of("SYSTEM_ADMIN", "HR_ADMIN");
+  /**
+   * 允许修改模型配置的角色：口径唯一来源在 {@link Permissions#AI_CONFIG_EDITOR_ROLES}，
+   * 与 {@code AiConfigController} 写接口的 {@code @PreAuthorize} 共用同一份，避免两处漂移（ADR-M012）。
+   */
+  private static final List<String> CONFIG_EDITABLE_ROLES = Permissions.AI_CONFIG_EDITOR_ROLES;
 
   private static final int MAX_KEY_LENGTH = 512;
 
@@ -58,20 +63,25 @@ public class AiConfigService {
 
   private final AiConfigRepository repository;
   private final Environment environment;
+  private final AiConfigCrypto crypto;
   private final RestTemplate probeRestTemplate;
 
-  // 必须显式标 @Autowired：本类有「2 参生产构造器」和「3 参测试构造器」两个构造器，
+  // 必须显式标 @Autowired：本类有「3 参生产构造器」和「4 参测试构造器」两个构造器，
   // 谁都不带注解时 Spring 的构造器推断会返回空、退回无参构造并抛
   // No default constructor found（单测能过是因为它不装配容器，只有真起 jar 才暴露）。
   @Autowired
-  public AiConfigService(AiConfigRepository repository, Environment environment) {
-    this(repository, environment, createProbeRestTemplate());
+  public AiConfigService(
+      AiConfigRepository repository, Environment environment, AiConfigCrypto crypto) {
+    this(repository, environment, crypto, createProbeRestTemplate());
   }
 
   /** 包级构造器供测试注入打桩过的 RestTemplate。 */
-  AiConfigService(AiConfigRepository repository, Environment environment, RestTemplate probeRestTemplate) {
+  AiConfigService(
+      AiConfigRepository repository, Environment environment, AiConfigCrypto crypto,
+      RestTemplate probeRestTemplate) {
     this.repository = repository;
     this.environment = environment;
+    this.crypto = crypto;
     this.probeRestTemplate = probeRestTemplate;
   }
 
@@ -105,7 +115,7 @@ public class AiConfigService {
 
     String baseUrl = orNull(row == null ? null : row.getBaseUrl());
     String model = orNull(row == null ? null : row.getModel());
-    String apiKey = orNull(row == null ? null : row.getApiKey());
+    String apiKey = orNull(row == null ? null : crypto.decryptOrRaw(row.getApiKey()));
 
     String source = (baseUrl != null || model != null) ? SOURCE_DB : SOURCE_ENV;
     if (baseUrl == null) {
@@ -136,7 +146,8 @@ public class AiConfigService {
     row.setBaseUrl(baseUrl.trim());
     row.setModel(model.trim());
     if (apiKey != null && !apiKey.isBlank()) {
-      row.setApiKey(apiKey.trim());
+      // 只加密不截断：密文 ENC(hex) 比明文长，长度校验（MAX_KEY_LENGTH）只约束明文输入
+      row.setApiKey(crypto.encrypt(apiKey.trim()));
     }
     row.setUpdatedBy(operator);
     row.setUpdatedAt(LocalDateTime.now());

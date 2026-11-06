@@ -7,6 +7,7 @@ import com.workbench.ai.dto.AiConfigTestRequest;
 import com.workbench.ai.dto.AiConfigView;
 import com.workbench.common.Result;
 import com.workbench.security.CurrentUserHolder;
+import com.workbench.security.Permissions;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -37,7 +38,7 @@ public class AiConfigController {
     return Result.success(configService.view());
   }
 
-  @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'HR_ADMIN')")
+  @PreAuthorize(Permissions.HAS_AI_CONFIG_EDITOR)
   @PutMapping("/config")
   public Result<AiConfigView> save(@RequestBody AiConfigSaveRequest request) {
     configService.save(request.baseUrl(), request.model(), request.apiKey(), CurrentUserHolder.currentUsername());
@@ -48,7 +49,7 @@ public class AiConfigController {
    * 测试连接：拿候选配置真实发一次极简生成请求，返回通不通 + 人话原因 + 耗时。
    * 权限与 save 一致（只有能改配置的角色才值得去试探上游），且只探测不落库。
    */
-  @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'HR_ADMIN')")
+  @PreAuthorize(Permissions.HAS_AI_CONFIG_EDITOR)
   @PostMapping("/config/test")
   public Result<AiConnectionCheck> test(@RequestBody(required = false) AiConfigTestRequest request) {
     return Result.success(configService.testConnection(request));
