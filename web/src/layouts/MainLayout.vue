@@ -64,14 +64,15 @@ const menus = computed<MenuItem[]>(() => {
       ]
     },
     { title: '企业知识库', index: '/kb/assistant', icon: 'Collection' },
-    { title: 'AI 智能体', index: '/ai/writing', icon: 'MagicStick' },
-    { title: '我的记忆', index: '/ai/memory', icon: 'Notebook' }
+    { title: 'AI 智能体', index: '/ai/writing', icon: 'MagicStick' }
+    // 「我的记忆」已并入「系统管理 → 治理中心」（ADR-M012），不再单列入口。
   ]
   if (isAdmin.value) {
     items.push({
       title: '系统管理', index: 'system', icon: 'Setting',
       children: [
-        { title: '成员管理', index: '/system/members' }
+        { title: '成员管理', index: '/system/members' },
+        { title: '治理中心', index: '/system/audit' }
       ]
     })
   }
@@ -310,6 +311,11 @@ function onLogout() {
   font-weight: 500;
   cursor: pointer;
   text-align: left;
+  /* 折痕修复（2026-11-06）：悬停位移会改变图层树，触发浏览器重建玻璃侧边栏的
+     backdrop 底片，本元素的描边在重绘帧里被合成到卡片自身填充上，表现为 160ms
+     内一闪的边缘亮线（实测亮度 185 → 203）。提前声明位移并提升为独立合成层后，
+     悬停不再引起图层树变化；对布局、位移距离与过渡时长均无影响。 */
+  will-change: transform;
   transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out),
     border-color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
 }

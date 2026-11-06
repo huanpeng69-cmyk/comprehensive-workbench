@@ -22,8 +22,13 @@ const router = createRouter({
         { path: 'party/members', name: 'party-members', component: () => import('@/views/party/PartyMembers.vue'), meta: { title: '党员名册' } },
         { path: 'union/condolence', name: 'union-condolence', component: () => import('@/views/union/CondolenceList.vue'), meta: { title: '慰问金审批' } },
         { path: 'kb/assistant', name: 'kb-assistant', component: () => import('@/views/kb/Assistant.vue'), meta: { title: '企业知识库' } },
-        { path: 'ai/memory', name: 'ai-memory', component: () => import('@/views/ai/MemoryCenter.vue'), meta: { title: '我的记忆' } },
-        { path: 'system/members', name: 'system-members', component: () => import('@/views/system/MemberManage.vue'), meta: { title: '成员管理' } }
+        // 「我的记忆」已并入治理中心（ADR-M012）：旧路径重定向，避免历史书签 404。
+        { path: 'ai/memory', name: 'ai-memory', redirect: '/system/audit' },
+        { path: 'ai/writing', name: 'ai-writing', component: () => import('@/views/ai/WritingStudio.vue'), meta: { title: 'AI 智能体' } },
+        { path: 'system/members', name: 'system-members', component: () => import('@/views/system/MemberManage.vue'), meta: { title: '成员管理' } },
+        // 治理中心：审计日志仅 SYSTEM_ADMIN（后端 @PreAuthorize 把关），
+        // 「我的记忆」Tab 所有人可见但只显示自己的（ADR-M012）。
+        { path: 'system/audit', name: 'system-audit', component: () => import('@/views/system/AuditCenter.vue'), meta: { title: '治理中心' } }
       ]
     }
   ]

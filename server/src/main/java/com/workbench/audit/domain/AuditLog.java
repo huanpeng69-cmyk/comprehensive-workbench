@@ -43,6 +43,14 @@ public class AuditLog {
 
   @Column(columnDefinition = "text")
   private String detail;
+  @Column(length = 16)
+  private String result;
+
+  @Column(length = 64)
+  private String resultCode;
+
+  @Column(name = "trace_id", length = 64)
+  private String traceId;
 
   @Column(nullable = false)
   private LocalDateTime createdAt;

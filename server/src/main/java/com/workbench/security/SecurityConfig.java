@@ -24,15 +24,19 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 public class SecurityConfig {
 
   private final JwtAuthFilter jwtAuthFilter;
+  private final TraceIdFilter traceIdFilter;
   private final ObjectMapper objectMapper;
 
   @Value("${workbench.cors.allowed-origins}")
   private String allowedOrigins;
 
-  public SecurityConfig(JwtAuthFilter jwtAuthFilter, ObjectMapper objectMapper) {
+  public SecurityConfig(JwtAuthFilter jwtAuthFilter, TraceIdFilter traceIdFilter,
+      ObjectMapper objectMapper) {
     this.jwtAuthFilter = jwtAuthFilter;
+    this.traceIdFilter = traceIdFilter;
     this.objectMapper = objectMapper;
   }
+
 
   @Bean
   public PasswordEncoder passwordEncoder() {
@@ -55,7 +59,11 @@ public class SecurityConfig {
             // 401/超时）被抹掉。放行 /error 仅放开容器错误页这一个末端口，业务接口不受影响。
             .requestMatchers("/api/auth/**", "/actuator/health", "/error").permitAll()
             .anyRequest().authenticated())
-        .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+        .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+        // 链路 id 必须在鉴权之前建立：JWT 解析、审计、日志都要拿到它。
+        // 两者都是 OncePerRequestFilter，同一次请求即使还被 Boot 自动注册一次，
+        // 也会被 alreadyFiltered 去重，不会执行两遍。
+        .addFilterBefore(traceIdFilter, JwtAuthFilter.class);
     return http.build();
   }
 

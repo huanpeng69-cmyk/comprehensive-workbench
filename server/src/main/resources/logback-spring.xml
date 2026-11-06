@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  治理底座 P0：全链路跟踪的日志端。
+  在默认控制台 pattern 里追加 traceId 占位，使所有日志行都带上当前请求的链路 id，
+  与审计表 audit_log.trace_id、响应头 X-Request-Id 三处对得上。
+  依赖 Spring Boot 对 application.yml 的 logging.level.* 继续生效；这里只覆盖 pattern。
+-->
+<configuration>
+  <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+  <property name="CONSOLE_LOG_PATTERN"
+      value="${CONSOLE_LOG_PATTERN:-%clr(%d{yyyy-MM-dd HH:mm:ss.SSS}){faint} %clr(${LOG_LEVEL_PATTERN:-%5p}) %clr(${PID:- }){magenta} %clr(---){faint} %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} [traceId=%X{traceId:-}] %m%n${LOG_EXCEPTION_CONVERSION_WORD:-%wEx}}"/>
+  <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+      <pattern>${CONSOLE_LOG_PATTERN}</pattern>
+      <charset>UTF-8</charset>
+    </encoder>
+  </appender>
+  <root level="INFO">
+    <appender-ref ref="CONSOLE"/>
+  </root>
+</configuration>
