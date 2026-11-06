@@ -1,7 +1,7 @@
 # 综合管理工作台 · 生产入口编排（仅 Nginx）
 #
 # 用途：部门联机部署时，80 端口统一入口
-#   浏览器 → :80 Nginx → 静态前端(web/dist) + /api → 宿主机 Spring Boot(:8080)
+#   浏览器 → :80 Nginx → 静态前端(web/dist) + /api → 宿主机 Spring Boot(:8081)
 #
 # 数据服务（PostgreSQL/Redis）仍由 server/docker-compose.yml 管理，
 # 本文件不重复定义，也不暴露任何数据端口。

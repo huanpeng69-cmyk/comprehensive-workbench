@@ -1,7 +1,7 @@
 @echo off
 rem ============================================================
 rem  Workbench one-click launcher (reliable / idempotent)
-rem  Order: Docker DB -> wait for Postgres -> backend(8080)
+rem  Order: Docker DB -> wait for Postgres -> backend(8081)
 rem         -> frontend(5173) -> health checks -> open browser
 rem  Safe to re-run: anything already listening is skipped.
 rem  Every step is recorded in launch.log for diagnosis.
@@ -93,9 +93,9 @@ goto waitpg
 call :log   Database is ready.
 
 rem ---------- 3) backend ----------
-call :portopen 8080
+call :portopen 8081
  if "%OPEN%"=="1" (
-   call :log [3/4] Backend already running on :8080 - skip.
+   call :log [3/4] Backend already running on :8081 - skip.
    call :log   .env changes made since this backend started are NOT picked up;
    call :log   close the "workbench-backend" window and re-run to apply them.
  ) else (
@@ -104,7 +104,7 @@ call :portopen 8080
     call :log           Build it first:  cd server  then  mvn -DskipTests package
     goto fail
   )
-  call :log [3/4] Starting backend on :8080 ...
+  call :log [3/4] Starting backend on :8081 ...
   rem Bridge to the enterprise KB (.pi) needs the read-only service token.
   rem Must match KB .env KB_SERVICE_TOKEN; empty => KB rejects with 401 -> proxy 500.
   rem The token is NOT stored in the repo: read it from git-ignored .kbtoken
@@ -152,14 +152,14 @@ timeout /t 2 /nobreak >nul
 start "workbench-frontend" /D "%ROOT%web" cmd /k npm run dev
 
 rem ---------- wait backend (raw-TCP, proxy-free) ----------
-call :log Waiting for backend on :8080 ...
+call :log Waiting for backend on :8081 ...
 set /a m=0
 :waitbe
 set /a m+=1
-call :portopen 8080
+call :portopen 8081
 if "%OPEN%"=="1" goto fe
 if %m% GEQ 90 (
-  call :log   [WARN] Backend still not listening on :8080. Check the "workbench-backend" window for errors.
+  call :log   [WARN] Backend still not listening on :8081. Check the "workbench-backend" window for errors.
   goto fe
 )
 timeout /t 1 /nobreak >nul
@@ -187,7 +187,7 @@ call :log ============================================================
  call :log   READY - opening http://localhost:5173 in your default browser ...
 call :log   Login credentials are shown right on the login page.
 call :blank
-call :log   backend  : :8080  window "workbench-backend"
+call :log   backend  : :8081  window "workbench-backend"
 call :log   frontend : :5173  window "workbench-frontend"
 call :log   Close those two windows to stop the services.
  call :log   The page opens in your default browser. The system proxy bypass list

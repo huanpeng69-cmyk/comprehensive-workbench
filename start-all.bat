@@ -3,7 +3,7 @@ rem ============================================================
 rem  One-click launcher: Enterprise KB (.pi :8765) + Workbench
 rem  Order: KB first (the workbench KB panel depends on it),
 rem         wait for :8765, then the workbench
-rem         (Docker DB / backend :8080 / frontend :5173).
+rem         (Docker DB / backend :8081 / frontend :5173).
 rem  Both launchers are idempotent: already-running = skip.
 rem  Every step is recorded in start-all.log for diagnosis.
 rem
@@ -79,7 +79,7 @@ call :log   Enterprise KB is ready on :8765.
 rem ---------- 2) workbench ----------
 :wb
 call :blank
-call :log [2/2] Starting workbench - Docker DB / backend :8080 / frontend :5173 ...
+call :log [2/2] Starting workbench - Docker DB / backend :8081 / frontend :5173 ...
 start "Workbench launcher" /D "%WB_DIR%" cmd /k "start-workbench.bat"
 call :blank
 call :log All done. Close the KB / backend / frontend windows to stop services.

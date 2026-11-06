@@ -22,7 +22,9 @@ spring:
       password: ${WORKBENCH_REDIS_PASSWORD:}
 
 server:
-  port: 8080
+  # 8080 已被同机其它项目（AI 视频平台 fusion-nginx）占用，工作台后端改用 8081。
+  # 联动处：start-workbench.bat 的端口探测、web/vite.config.ts 的 /api 代理 target。
+  port: 8081
 
 workbench:
   jwt:
