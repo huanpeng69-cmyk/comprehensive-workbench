@@ -44,7 +44,8 @@ public class KnowledgeBaseTool implements AgentTool {
   }
 
   private static RestTemplate createRestTemplate() {
-    return RestTemplateProxySupport.create(5_000, 90_000);
+    // 读超时 30 秒：必须小于工具的 timeoutMs（35 秒），让 HTTP 层先失败并返回可自解释的降级文案。
+    return RestTemplateProxySupport.create(5_000, 30_000);
   }
 
   @Override
@@ -76,6 +77,25 @@ public class KnowledgeBaseTool implements AgentTool {
     return schema;
   }
 
+  /**
+   * 知识库是公司级制度资料（不区分项目部），且内部按用户问题检索，故声明为全局只读工具。
+   */
+  @Override
+  public boolean needsProjectScope() {
+    return false;
+  }
+
+  /**
+   * 比默认的 15 秒放宽：知识库要跑一次向量检索 + 生成，正常耗时明显更长。
+   *
+   * <p>但必须严格大于下方 RestTemplate 的读超时（30 秒）：让 HTTP 层先超时，
+   * 由本工具的 catch 分支返回「【知识库暂不可用】…」这种能自解释的文案；
+   * 若把工具超时设得更短，模型只会看到笼统的「工具超时」，也白白多占一个工具线程。</p>
+   */
+  @Override
+  public int timeoutMs() {
+    return 35_000;
+  }
   @Override
   public String execute(Map<String, Object> args) {
     if (kbBaseUrl == null || kbBaseUrl.isBlank()) {
@@ -128,12 +148,17 @@ public class KnowledgeBaseTool implements AgentTool {
       for (Object r : list) {
         if (r instanceof Map<?, ?> m) {
           Object content = m.get("content");
+          // 没有正文的片段直接跳过：append(null) 会拼出字面 "null"，模型会把占位当成真实内容引用。
+          String body = content == null ? "" : String.valueOf(content).trim();
+          if (body.isEmpty()) {
+            continue;
+          }
           Object source = m.get("source");
           sb.append("【片段 ").append(i++).append("】");
           if (source != null && !String.valueOf(source).isBlank()) {
             sb.append("来源：").append(source).append("\n");
           }
-          sb.append(content).append("\n");
+          sb.append(body).append("\n");
         }
       }
     }

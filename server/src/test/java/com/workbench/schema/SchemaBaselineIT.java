@@ -55,8 +55,8 @@ class SchemaBaselineIT {
   @Container
   static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:16-alpine");
 
-  /** 现有迁移：V1～V16 全部成功，一条都不能漏。 */
-  private static final int EXPECTED_MIGRATIONS = 17;
+  /** 现有迁移：V1～V20 全部成功，一条都不能漏。 */
+  private static final int EXPECTED_MIGRATIONS = 20;
   /** 阶段 2 加 {@code company_id} 且收紧为 NOT NULL 的 11 张表（ADR-M002 软隔离口径）。 */
   private static final List<String> COMPANY_SCOPED_TABLES = List.of(
       "org_unit", "sys_user", "employee", "leave_record", "condolence", "process_instance",
@@ -182,8 +182,23 @@ class SchemaBaselineIT {
         }
       }
     }
-    assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17"), versions);
+    assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20"), versions);
     assertEquals(EXPECTED_MIGRATIONS, versions.size());
+  }
+
+  /**
+   * V18 契约：{@code ai_config.api_key} 必须放宽到 {@code text}。
+   *
+   * <p>V9 建表时该列是 {@code varchar(512)}，而 {@code AiConfigCrypto} 写的 {@code ENC(<hex>)}
+   * 密文恰好比明文更长，长密钥的密文塞不进 512，保存会在数据库层报错。这里锁死「已放宽」，
+   * 防止后人回退列宽或重建表时照抄 V9 的旧定义。</p>
+   */
+  @Test
+  void aiConfigApiKeyWidenedToText() throws SQLException {
+    assertTrue(hasColumn("ai_config", "api_key"), "ai_config 表必须有 api_key 列");
+    assertEquals("text", text("select data_type from information_schema.columns "
+            + "where table_name = 'ai_config' and column_name = 'api_key'"),
+        "V18 必须把 api_key 放宽为 text，否则长密文无法落库");
   }
 
   @Test
@@ -337,6 +352,16 @@ class SchemaBaselineIT {
             + "where code = 'workflow:definition:manage'"),
         "V14 must seed the workflow:definition:manage permission");
     assertEquals(0, count("select count(*) from sys_role_permission"),
+        "no grant rows during Flyway: roles are seeded by the application layer");
+  }
+  @Test
+  void agentEntryPermissionIsSeededWithoutGrants() throws SQLException {
+    // ADR-M013: /api/ai/writing/agent 的入口权限点。V20 只建字典行，授予交给
+    // DataInitializer#grantAgentUseToAllRoles 在启动期补授（与 V14 同因：Flyway 阶段 sys_role 为空）。
+    assertEquals(1, count("select count(*) from sys_permission where code = 'ai:agent:use'"),
+        "V20 must seed the ai:agent:use permission");
+    assertEquals(0, count("select count(*) from sys_role_permission where permission_id = "
+            + "(select id from sys_permission where code = 'ai:agent:use')"),
         "no grant rows during Flyway: roles are seeded by the application layer");
   }
 

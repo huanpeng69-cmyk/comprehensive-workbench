@@ -6,9 +6,10 @@ import com.workbench.identity.domain.User;
 import com.workbench.identity.repository.OrgUnitRepository;
 import com.workbench.identity.domain.Permission;
 import com.workbench.identity.repository.PermissionRepository;
-import com.workbench.identity.domain.Permission;
 import com.workbench.identity.repository.RoleRepository;
 import com.workbench.identity.repository.UserRepository;
+import com.workbench.security.Permissions;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.boot.CommandLineRunner;
@@ -51,6 +52,9 @@ public class DataInitializer implements CommandLineRunner {
       seedDemoData();
     }
     ensureAdminAccount();
+    // 每次启动都补授「AI 助手使用」权限点（幂等）：只能授给"全部现有角色"，而角色表只在启动期才确定，
+    // 故不能写进 Flyway（ADR-M013）。少了这一步，升级后所有账号调 /api/ai/writing/agent 都会 403。
+    grantAgentUseToAllRoles();
   }
 
   private void seedDemoData() {
@@ -157,12 +161,6 @@ public class DataInitializer implements CommandLineRunner {
   }
 
   /**
-   * 把「流程定义管理」权限点授给指定角色（ADR-M010）。幂等：已授则跳过。
-   *
-   * <p>放在这里而不是只靠 V14 的原因：V14 跑 Flyway 时 sys_role 还是空的（角色种子由本类写），
-   * 那条 insert 匹配不到任何角色行；新装库的授权只能由本类在角色就绪后补。</p>
-   */
-  /**
    * Permission code for workflow definition admin (ADR-M010).
    *
    * Deliberately a local literal instead of importing workflow's constant:
@@ -171,6 +169,12 @@ public class DataInitializer implements CommandLineRunner {
    */
   private static final String PERMISSION_DEFINITION_MANAGE = "workflow:definition:manage";
 
+  /**
+   * 把「流程定义管理」权限点授给指定角色（ADR-M010）。幂等：已授则跳过。
+   *
+   * <p>放在这里而不是只靠 V14 的原因：V14 跑 Flyway 时 sys_role 还是空的（角色种子由本类写），
+   * 那条 insert 匹配不到任何角色行；新装库的授权只能由本类在角色就绪后补。</p>
+   */
   private void grantDefinitionManage(Role role) {
     Permission permission = permissionRepository
         .findByCode(PERMISSION_DEFINITION_MANAGE)
@@ -179,9 +183,43 @@ public class DataInitializer implements CommandLineRunner {
             .name("流程定义管理")
             .module("workflow")
             .enabled(true)
+            // @Builder 会忽略字段初始化表达式（Lombok 语义）：不显式给 roles 就是 null，
+            // 下面 permission.getRoles().contains(...) 直接 NPE。与 grantAgentUseToAllRoles 同一个坑。
+            .roles(new LinkedHashSet<>())
             .build()));
     if (!permission.getRoles().contains(role)) {
       permission.getRoles().add(role);
+      permissionRepository.save(permission);
+    }
+  }
+
+  /**
+   * 把「AI 助手使用」权限点授给<b>全部现有角色</b>（ADR-M013）。幂等：已授则跳过。
+   *
+   * <p>为什么在代码里而不是在 V20 里：Flyway 阶段 {@code sys_role} 还是空的（角色种子由本类/演示数据写），
+   * 迁移里的授权语句匹配不到任何行，与 V14 同一个坑。与流程定义权限点的差别在于授予面：
+   * 那个只给管理员，可以跟在"新建管理员账号"分支里；这个要给<b>所有</b>角色，且必须覆盖
+   * 已有账号的库（开发库/生产库的 {@code sys_user} 非空、走不到演示数据分支），
+   * 所以每次启动都遍历角色表补授——上线当天可用性与上线前一致，此后可按角色单独回收。</p>
+   */
+  void grantAgentUseToAllRoles() {
+    Permission permission = permissionRepository.findByCode(Permissions.AI_AGENT_USE)
+        .orElseGet(() -> permissionRepository.save(Permission.builder()
+            .code(Permissions.AI_AGENT_USE)
+            .name("AI 助手使用")
+            .module("ai")
+            .enabled(true)
+            // @Builder 会忽略字段初始化表达式（Lombok 语义），不显式给就是 null，
+            // 下面 getRoles().add(...) 会直接 NPE。
+            .roles(new LinkedHashSet<>())
+            .build()));
+    boolean changed = false;
+    for (Role role : roleRepository.findAll()) {
+      if (permission.getRoles().add(role)) {
+        changed = true;
+      }
+    }
+    if (changed) {
       permissionRepository.save(permission);
     }
   }

@@ -4,7 +4,9 @@ import com.workbench.ai.application.AgentService;
 import com.workbench.ai.application.AiWritingService;
 import com.workbench.ai.dto.AgentRequest;
 import com.workbench.ai.dto.WritingRequest;
+import com.workbench.security.Permissions;
 import org.springframework.http.MediaType;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -39,7 +41,16 @@ public class WritingController {
     return writingService.streamGenerate(request);
   }
 
-  /** 新入口：通用 Agent（多轮 + 人设 + 工具调用），自定义 SSE 事件流。 */
+  /**
+   * 新入口：通用 Agent（多轮 + 人设 + 工具调用），自定义 SSE 事件流。
+   *
+   * <p>ADR-M013：入口加 {@link Permissions#AI_AGENT_USE} 权限点。Agent 会按登录身份调用工具，
+   * 「只要能登录就能用 Agent」等于把工具交到所有账号手里；权限点落在 {@code sys_permission} 上，
+   * 收回只需删一行 {@code sys_role_permission}，不必改代码再发版。无权限时方法体根本不执行，
+   * 由 {@code GlobalExceptionHandler} 返回 403 信封（前端 {@code aiWriting.ts} 已按
+   * {@code res.ok} + {@code message} 兜住，无需改动）。</p>
+   */
+  @PreAuthorize(Permissions.HAS_AI_AGENT_USE)
   @PostMapping(value = "/agent", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
   public SseEmitter agent(@RequestBody AgentRequest request) {
     return agentService.streamAgent(request);

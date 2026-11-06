@@ -1,6 +1,7 @@
 package com.workbench.workflow.api;
 
 import com.workbench.common.Result;
+import com.workbench.security.Permissions;
 import com.workbench.workflow.application.WorkflowDefinitionService;
 import com.workbench.workflow.application.dto.DefinitionSnapshotVo;
 import com.workbench.workflow.application.dto.DefinitionVersionVo;
@@ -64,7 +65,7 @@ public class WorkflowDefinitionController {
    * <p>{@code nodes} 必须是全部节点，服务端整体替换（先删后插）。</p>
    */
   @PostMapping
-  @PreAuthorize("hasAuthority('workflow:definition:manage')")
+  @PreAuthorize(Permissions.HAS_WORKFLOW_DEFINITION_MANAGE)
   public Result<ProcessDefinitionDetailVo> create(
       @Valid @RequestBody DefinitionSnapshotVo snapshot) {
     return Result.success(definitionService.create(snapshot));
@@ -89,7 +90,7 @@ public class WorkflowDefinitionController {
    * @param note 回滚原因（可选），随新版本一起存档
    */
   @PostMapping("/{id}/rollback/{version}")
-  @PreAuthorize("hasAuthority('workflow:definition:manage')")
+  @PreAuthorize(Permissions.HAS_WORKFLOW_DEFINITION_MANAGE)
   public Result<ProcessDefinitionDetailVo> rollback(@PathVariable Long id,
       @PathVariable Integer version, @RequestParam(required = false) String note) {
     return Result.success(definitionService.rollback(id, version, note));

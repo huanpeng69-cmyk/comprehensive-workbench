@@ -1,4 +1,4 @@
-import { get, post, put, clearSessionAndRedirect } from './http'
+import { get, post, put, clearSessionAndRedirect, buildHeaders } from './http'
 
 export interface AiConfigView {
   /** OpenAI 兼容接口地址 */
@@ -100,15 +100,12 @@ export async function sendAgentMessage(
   payload: AgentRequestDto,
   handlers: AgentStreamHandlers
 ): Promise<void> {
-  const token = localStorage.getItem('workbench-token')
   let res: Response
   try {
     res = await fetch('/api/ai/writing/agent', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {})
-      },
+      // 治理底座 P0b：复用统一请求头构造器（JWT + X-Request-Id），与 http.ts 的 traceId 对齐。
+      headers: buildHeaders(),
       body: JSON.stringify({ ...payload, stream: true })
     })
   } catch (e) {
