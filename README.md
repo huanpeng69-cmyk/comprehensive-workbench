@@ -1,11 +1,12 @@
 # 综合管理工作台 · Comprehensive Workbench
 
-> 面向组织内部的统一管理工作台：把**人力、办公室、党建、工会**四大场景收敛到一个入口，统一承载待办、流程、消息、权限与数据。
-> Unified internal ops workbench — HR / Office / Party / Union — with one entry point for todos, workflows, messaging, auth and data.
+> 面向组织内部的统一管理工作台：把**人力、办公室、党建、工会**四大场景收敛到一个入口，统一承载待办、流程、消息、权限与数据；并在此之上内置一层**可审计的 AI 智能体**——工具调用、流式输出、权限校验与链路留痕都在服务端完成。
+> Unified internal ops workbench — HR / Office / Party / Union — with one entry point for todos, workflows, messaging, auth and data, plus an auditable AI agent layer (tool calling, streaming, authorization, traceability).
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Frontend](https://img.shields.io/badge/frontend-Vue%203%20%2B%20TS-42b883.svg)](web/)
 [![Backend](https://img.shields.io/badge/backend-Spring%20Boot%203.3-6db33f.svg)](server/)
+[![Tests](https://img.shields.io/badge/backend%20tests-265%20passing-brightgreen.svg)](server/)
 
 ---
 
@@ -34,6 +35,7 @@
 | **党建管理** | 党员/组织台账、组织生活（计划·签到·纪要·归档）、党费季度明细与封顶规则、学习记录、活动经费审批 | 组织生活「计划—通知—签到—材料—纪要—归档」闭环 |
 | **工会管理** | 会员台账、活动报名/签到/反馈、福利与帮扶登记、慰问金审批发放、节日福利签收、意见提案闭环 | 提案提交 → 分类 → 转办 → 答复 → 满意度评价 |
 | **平台能力** | 统一待办中心、统一消息中心、统一流程中心（可视化配置 + 按角色/金额/敏感等级路由）、统一文件与附件、全局搜索、数据中心（驾驶舱/报表） | 跨模块复用，事项统一进入待办并可催办/转办/加签 |
+| **AI 与治理** | 企业知识库对话（SSE 流式）、AI 智能体（工具调用循环）、治理中心（审计日志 + 我的记忆）、全链路 traceId | 提问 → 检索 / 工具调用 → 审计留痕 → 可按 traceId 复盘 |
 
 > 审计整改与自查是四大模块共有的闭环场景，统一沉淀为「问题—任务—证据—销号」台账。
 
@@ -71,8 +73,17 @@
 | 部署 | Docker Compose 起步，后续可迁 Kubernetes |
 | 监控 | 健康检查 + 日志 + 指标 |
 
-### 大模型能力 AI（可插拔）
-业务模块只依赖统一的文本生成 / 摘要 / 检索 / 校对接口，具体模型由 **Model Adapter** 实现（OpenAI-compatible / 国产模型 / 私有模型 / Mock）。优点：模型可替换、调用可审计、敏感材料可拦截、测试可模拟。写作台 AI 功能通过适配器接入，业务代码不绑定具体 SDK。
+### 大模型能力 AI（可插拔 + 可治理）
+
+模型接入走 OpenAI-compatible 协议，**业务代码不绑定任何 SDK**：`workbench.ai.base-url / model / api-key` 决定指向哪家供应商，可随时换成国产模型或私有部署。已落地的能力：
+
+| 能力 | 做法 |
+|---|---|
+| 工具调用循环 | 模型可调用知识库检索等服务端工具，最多 6 轮；每次调用经统一入口，带超时、失败隔离与取消传播 |
+| 流式输出 | SSE 推送 `message` / `tool_call` / `tool_result` / `done` / `error`；决策轮本身也是流式，`tool_calls` 分片按 index 归并 |
+| 上下文预算 | 历史按字符预算从最旧淘汰、保留连续后缀，最新一条无条件保留，发生省略时显式告知模型 |
+| 密钥保护 | 模型密钥在库中以 `ENC(...)` 密文存储，口令来自 `WORKBENCH_AI_CRYPTO_KEY`；未配置时拒绝保存新密钥，而不是静默回退明文 |
+| 权限与留痕 | AI 入口是独立权限点；每次工具调用写审计表，成功 / 被拒 / 失败都留档，可按 traceId 回溯 |
 
 ---
 
@@ -150,9 +161,10 @@ cd server
 cp config/application.example.yml config/application.yml   # 按需覆盖默认值
 echo "WORKBENCH_DB_PASSWORD=请改成你自己的密码" > .env
 echo "WORKBENCH_REDIS_PASSWORD=请改成你自己的密码" >> .env
+echo "WORKBENCH_AI_CRYPTO_KEY=请改成你自己的随机长串" >> .env   # 可选：启用模型密钥加密存储
 docker compose up -d                       # 启动 PostgreSQL(5432) + Redis(6379)
 mvn -DskipTests package                    # 构建 jar -> target/workbench-server-0.1.0.jar
-java -jar target/workbench-server-0.1.0.jar   # 后端监听 :8080
+java -jar target/workbench-server-0.1.0.jar   # 后端监听 :8081
 
 # 2) 前端（另开终端）
 cd web
@@ -164,7 +176,7 @@ npm run dev                                # 前端监听 :5173
 
 ### 方式 B：Windows 一键启动
 
-已内置 `start-workbench.bat`（幂等、可重复运行）：先启动 Docker 数据库，等待 PostgreSQL 就绪，再启动后端（`:8080`）与前端（`:5173`）。**要求已用方式 A 第 1 步构建好 jar，且 Docker Desktop 处于 running 状态。**
+已内置 `start-workbench.bat`（幂等、可重复运行）：先启动 Docker 数据库，等待 PostgreSQL 就绪，再启动后端（`:8081`）与前端（`:5173`）。**要求已用方式 A 第 1 步构建好 jar，且 Docker Desktop 处于 running 状态。**
 
 ### 演示账号 / Demo Accounts
 
@@ -207,7 +219,9 @@ npm run dev                                # 前端监听 :5173
 ├─ docs/
 │  ├─ images/                # 架构图（SVG 源 + PNG）
 │  ├─ screenshots/           # 界面截图
-│  └─ 安全加固说明.md
+│  ├─ 安全加固说明.md
+│  ├─ decisions/             # 架构决策记录（ADR-M012 ~ M017）
+│  └─ 侧边栏折痕-根因与防再犯检查.md
 ├─ 综合管理工作台产品需求文档.md
 ├─ 综合管理工作台技术方案与架构分层说明.md
 ├─ 综合管理工作台业务调研与需求修订说明.md
@@ -220,7 +234,17 @@ npm run dev                                # 前端监听 :5173
 
 ---
 
-## 8. 文档索引 / Docs
+## 8. 质量与测试 / Quality
+
+- 后端单元测试 **265 个全绿**：`cd server && mvn -o test`。
+- 数据库结构由 Flyway 管理，迁移链 **V1–V20**，破坏性变更配 `db/rollback/` 回滚脚本。
+- 架构约束有测试兜底：`ModuleBoundaryTest` 拦截跨层与跨模块直接调用。
+- 架构级决策留档于 `docs/decisions/`；踩过的坑写「根因 + 防再犯检查」，不只写结论。
+- **零新增依赖**：能在既有依赖内解决就不引入新库。
+
+---
+
+## 9. 文档索引 / Docs
 
 | 文档 | 内容 |
 |---|---|
@@ -228,19 +252,21 @@ npm run dev                                # 前端监听 :5173
 | [综合管理工作台技术方案与架构分层说明.md](综合管理工作台技术方案与架构分层说明.md) | 分层架构、技术栈、编码约束、模块依赖、AI 演进路线、ADR 决策记录 |
 | [综合管理工作台业务调研与需求修订说明.md](综合管理工作台业务调研与需求修订说明.md) | 业务调研结论与需求修订说明 |
 | [docs/安全加固说明.md](docs/安全加固说明.md)（公开脱敏版） | 安全加固清单（P0 已完成 / P1 待处理）与部署须知 |
+| [docs/decisions/](docs/decisions/) | 架构决策记录（ADR）：AI 入口权限点、项目范围判定、知识库流式、上下文预算、流式决策 |
+| [docs/侧边栏折痕-根因与防再犯检查.md](docs/侧边栏折痕-根因与防再犯检查.md) | 渲染层缺陷的取证方法与防再犯检查 |
 
 ---
 
-## 9. 免责声明 / Disclaimer
+## 10. 免责声明 / Disclaimer
 
 - **本仓库为演示/作品集用途（portfolio demo）**，所有人员姓名、身份证号、手机号、工资数额、党费、慰问金等均为**合成假数据**，不含任何真实个人信息（《个人信息保护法》合规）。
 - 公司名称（示范建工集团）、项目部名称（云岭/江湾/榕荫/南岸/荔园）均为**虚构示例**，与任何真实组织无关。
 - 内部资料（公司制度原文、真实业务数据、内部构建工具链）已按安全规范排除在仓库之外。
-- 写作台 AI 能力为「可插拔辅助」设计，**不直接自动生成未经审核的正式文件**；演示环境中 AI 调用需自行配置模型适配器。
+- 写作台 AI 能力为「可插拔辅助」设计，**不直接自动生成未经审核的正式文件**；演示环境需自行在「AI 配置」中填入模型的 `base-url` 与 `api-key`（密钥以 `ENC(...)` 密文入库，口令来自 `WORKBENCH_AI_CRYPTO_KEY`），未配置时该能力自动降级为不可用。
 - 生产部署请务必修改默认口令、启用 HTTPS、补齐 JWT 吊销与敏感字段管控（详见安全加固说明）。
 
 ---
 
-## 10. License
+## 11. License
 
 [MIT](LICENSE) —— 可自由用于学习、演示与二次开发。
