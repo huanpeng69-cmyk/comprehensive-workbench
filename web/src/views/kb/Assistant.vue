@@ -1,10 +1,9 @@
 <script setup lang="ts">
-import { ref, nextTick } from 'vue'
+import { computed, ref, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import {
-  chatKb,
+  chatKbStream,
   queryKb,
-  type KbChatResult,
   type KbCitation,
   type KbHit
 } from '@/api/kbAssistant'
@@ -23,6 +22,11 @@ const messages = ref<Message[]>([])
 const input = ref('')
 const loading = ref(false)
 const topK = ref(5)
+
+/** 只渲染有内容的回答气泡：流式开始时会先落一个空气泡，正文到了才显示 */
+const visibleMessages = computed(() =>
+  messages.value.filter((m) => m.role === 'user' || m.content)
+)
 
 const retrievalLabel: Record<string, string> = {
   vector: '向量检索',
@@ -93,33 +97,47 @@ async function send() {
   input.value = ''
   loading.value = true
   const history = buildHistory().slice(0, -1)
+  // 先落一个空回答气泡，后续 delta 直接往它身上拼：文字是原地长出来的，
+  // 而不是等整段返回后一次性出现。空内容的气泡由 visibleMessages 过滤掉。
+  messages.value.push({ role: 'assistant', content: '', citations: [], graphEvidence: [] })
+  const reply = messages.value[messages.value.length - 1]
   await nextTick()
+  scrollToBottom()
   try {
-    const res: KbChatResult = await chatKb({
-      question,
-      history,
-      top_k: topK.value,
-      min_relevance: 0.3
-    })
-    if (!res.ok) {
-      messages.value.push({
-        role: 'assistant',
-        content: res.error || '知识库未返回结果',
-        isError: true
-      })
-    } else {
-      messages.value.push({
-        role: 'assistant',
-        content: res.answer || '',
-        citations: res.citations || [],
-        retrievalMode: res.retrieval_mode,
-        graphEvidence: res.graph_evidence || [],
-        mode: res.mode
-      })
-    }
+    await chatKbStream(
+      { question, history, top_k: topK.value, min_relevance: 0.3 },
+      {
+        onMeta: (meta) => {
+          // 引用先到：正文还在路上时就能看到来源与检索模式
+          reply.citations = meta.citations || []
+          reply.retrievalMode = meta.retrievalMode
+          reply.graphEvidence = meta.graphEvidence || []
+          reply.mode = meta.mode
+        },
+        onDelta: (delta) => {
+          reply.content += delta
+          // 第一段正文到了就撤掉「知识库思考中…」，避免占位与正文同时出现
+          if (loading.value) loading.value = false
+          nextTick(scrollToBottom)
+        },
+        onError: (msg) => {
+          if (reply.content) {
+            reply.content += `\n\n（回答中断：${msg}）`
+          } else {
+            reply.content = msg
+            reply.isError = true
+          }
+        }
+      }
+    )
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : '调用知识库失败'
-    messages.value.push({ role: 'assistant', content: msg, isError: true })
+    if (reply.content) {
+      reply.content += `\n\n（回答中断：${msg}）`
+    } else {
+      reply.content = msg
+      reply.isError = true
+    }
   } finally {
     loading.value = false
     await nextTick()
@@ -174,7 +192,7 @@ async function openRaw() {
         向企业知识库提问吧，例如：「差旅费报销标准是多少？」「工会慰问金申请流程？」
       </div>
       <div
-        v-for="(m, i) in messages"
+        v-for="(m, i) in visibleMessages"
         :key="i"
         class="kb-msg"
         :class="m.role === 'user' ? 'is-user' : 'is-bot'"
@@ -405,6 +423,17 @@ async function openRaw() {
 }
 .kb-input .el-button {
   flex-shrink: 0;
+}
+
+/* 输入框文字改黑：glass 主题的 --text-* 是白色系，而这里的 textarea 渲染成
+   .el-textarea__inner，glass.css 只给它设了背景与 inset 阴影、没有设 color，
+   于是继承到白字压近白底（rgba(255,253,248,0.5)），输入内容几乎看不见。 */
+.kb-input :deep(.el-textarea__inner) {
+  color: #1f1a13;
+  caret-color: #1f1a13;
+}
+.kb-input :deep(.el-textarea__inner::placeholder) {
+  color: #8a7a63;
 }
 .kb-raw-item {
   border-bottom: 1px dashed rgba(120, 100, 70, 0.16);
